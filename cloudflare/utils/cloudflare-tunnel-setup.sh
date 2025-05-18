@@ -5,6 +5,14 @@ UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../utils" && pwd)"
 ENV_LOADER="$UTILS_DIR/load-env.sh"
 FILE_UTILS="$UTILS_DIR/file-utils.sh"
 
+PLATFORM_UTILS="$UTILS_DIR/platform-utils.sh"
+if [[ -f "$PLATFORM_UTILS" ]]; then
+  source "$PLATFORM_UTILS"
+else
+  echo "❌ Missing: $PLATFORM_UTILS"
+  exit 1
+fi
+
 # Load helpers
 if [[ ! -f "$ENV_LOADER" ]]; then
   echo "❌ Missing: $ENV_LOADER"
@@ -38,28 +46,15 @@ echo "🔍 Checking for cloudflared..."
 if ! command -v cloudflared > /dev/null 2>&1; then
   echo "⚙️ cloudflared not found. Attempting auto-install..."
 
-  ARCH=$(uname -m)
-  case "$ARCH" in
-    x86_64) ARCH_DL="amd64" ;;
-    aarch64 | arm64) ARCH_DL="arm64" ;;
-    *)
-      echo "❌ Unsupported architecture: $ARCH"
+  download_binary_for_arch \
+    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-" \
+    cloudflared \
+    /usr/local/bin/cloudflared || {
+      echo "❌ Auto-install failed. Please install manually:"
+      echo "   https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install/"
       exit 1
-      ;;
-  esac
-
-  curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$ARCH_DL" \
-    -o cloudflared && chmod +x cloudflared
-  sudo mv cloudflared /usr/local/bin/cloudflared
-
-  if ! command -v cloudflared > /dev/null 2>&1; then
-    echo "❌ Auto-install failed. Please install manually:"
-    echo "   https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install/"
-    exit 1
-  fi
-fi
-echo "✅ cloudflared found at: $(command -v cloudflared)"
-
+  }
+  
 # === Step 2: Ensure login ===
 if [[ ! -f "$CLOUDFLARE_CERT_PATH" ]]; then
   echo "🌐 Logging into Cloudflare..."

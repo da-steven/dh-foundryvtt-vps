@@ -10,7 +10,7 @@ safe_mkdir() {
     echo "✅ Directory already exists: $dir"
   else
     echo "📁 Creating directory: $dir"
-    mkdir -p "$dir" || {
+    sudo mkdir -p "$dir" || {
       echo "❌ Failed to create: $dir"
       return 1
     }
@@ -39,7 +39,7 @@ confirm_delete() {
     read -p "Do you want to delete it? (y/n): " CONFIRM
     if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
       echo "🗑️ Deleting $target..."
-      rm -rf "$target"
+      sudo rm -rf "$target"
     else
       echo "⛔ Deletion cancelled."
       return 1
@@ -78,9 +78,9 @@ backup_data_folder() {
   local dest="$backup_root/${base_name}-backup-$timestamp"
 
   echo "📦 Backing up $source → $dest"
-  mkdir -p "$backup_root"
+  sudo mkdir -p "$backup_root"
 
-  cp -r "$source" "$dest" || {
+  sudo cp -r "$source" "$dest" || {
     echo "❌ Failed to copy."
     return 1
   }

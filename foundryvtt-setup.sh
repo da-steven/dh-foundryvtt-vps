@@ -16,6 +16,14 @@ for helper in "$ENV_LOADER" "$FILE_UTILS"; do
   fi
 done
 
+PLATFORM_UTILS="$UTILS_DIR/platform-utils.sh"
+if [[ -f "$PLATFORM_UTILS" ]]; then
+  source "$PLATFORM_UTILS"
+else
+  echo "❌ Missing: $PLATFORM_UTILS"
+  exit 1
+fi
+
 # === Constants ===
 MAX_RETRIES=3
 USE_BUILDKIT=0
@@ -75,7 +83,8 @@ if [[ -d "$DATA_DIR" ]]; then
   fi
 fi
 
-# === Disk space check before proceeding ===
+# === Ensure parent directory and check disk space ===
+safe_mkdir "$(dirname "$DATA_DIR")" || exit 1
 check_disk_space "$(dirname "$DATA_DIR")" 500 || {
   echo "❌ Not enough disk space for installation. Aborting."
   exit 1
@@ -149,25 +158,25 @@ fi
 
 # === BuildKit Check ===
 if ! docker buildx version > /dev/null 2>&1; then
-  echo "⚠️ BuildKit not available. Install now? (y/n): "
+  echo "⚠️ Docker BuildKit not available. Install now? (y/n): "
   read -p "" INSTALL_BK
   if [[ "$INSTALL_BK" =~ ^[Yy]$ ]]; then
     mkdir -p ~/.docker/cli-plugins
-    curl -sSL https://github.com/docker/buildx/releases/latest/download/buildx-v0.11.2.linux-amd64 \
-      -o ~/.docker/cli-plugins/docker-buildx && chmod +x ~/.docker/cli-plugins/docker-buildx
-    if docker buildx version > /dev/null 2>&1; then
-      echo "✅ BuildKit installed."
-      USE_BUILDKIT=1
-    else
-      echo "❌ BuildKit installation failed."
-      read -p "Continue using legacy builder? (y/n): " CONT
-      [[ ! "$CONT" =~ ^[Yy]$ ]] && exit 1
-    fi
+    download_binary_for_arch \
+      "https://github.com/docker/buildx/releases/latest/download/buildx-v0.11.2.linux-" \
+      docker-buildx \
+      "$HOME/.docker/cli-plugins/docker-buildx" || {
+        echo "❌ BuildKit installation failed."
+        read -p "Continue using legacy builder? (y/n): " CONT
+        [[ ! "$CONT" =~ ^[Yy]$ ]] && exit 1
+    }
+    USE_BUILDKIT=1
   else
     echo "⚠️ Continuing with legacy builder."
+    USE_BUILDKIT=0
   fi
 else
-  echo "✅ BuildKit available."
+  echo "✅ BuildKit already available."
   USE_BUILDKIT=1
 fi
 
