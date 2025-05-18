@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UTILS_DIR="$SCRIPT_DIR/utils"
 ENV_LOADER="$UTILS_DIR/load-env.sh"
 FILE_UTILS="$UTILS_DIR/file-utils.sh"
+BUILDX_VERSION="v0.11.2"
 
 # === Load Helpers ===
 for helper in "$ENV_LOADER" "$FILE_UTILS"; do
@@ -162,13 +163,10 @@ if ! docker buildx version > /dev/null 2>&1; then
   read -p "" INSTALL_BK
   if [[ "$INSTALL_BK" =~ ^[Yy]$ ]]; then
     mkdir -p ~/.docker/cli-plugins
-    download_binary_for_arch \
-      "https://github.com/docker/buildx/releases/latest/download/buildx-v0.11.2.linux-" \
-      docker-buildx \
-      "$HOME/.docker/cli-plugins/docker-buildx" || {
-        echo "❌ BuildKit installation failed."
-        read -p "Continue using legacy builder? (y/n): " CONT
-        [[ ! "$CONT" =~ ^[Yy]$ ]] && exit 1
+    download_binary_for_arch "$BUILDX_VERSION" "buildx" "$HOME/.docker/cli-plugins/docker-buildx" || {
+      echo "❌ BuildKit installation failed."
+      read -p "Continue using legacy builder? (y/n): " CONT
+      [[ ! "$CONT" =~ ^[Yy]$ ]] && exit 1
     }
     USE_BUILDKIT=1
   else

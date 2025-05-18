@@ -22,26 +22,27 @@ detect_architecture() {
 # Usage: download_binary_for_arch <base_url> <filename> <dest_path>
 # Example: download_binary_for_arch https://.../cloudflared-linux- cloudflared /usr/local/bin/cloudflared
 download_binary_for_arch() {
-  local base_url="$1"
-  local binary_name="$2"
-  local dest_path="$3"
+  local version="$1"         # e.g. v0.11.2
+  local base_name="$2"       # e.g. buildx
+  local dest="$3"            # e.g. ~/.docker/cli-plugins/docker-buildx
 
-  local arch
-  arch=$(detect_architecture) || return 1
-  local url="${base_url}${arch}"
+  local arch=$(uname -m)
+  case "$arch" in
+    x86_64) arch_dl="amd64" ;;
+    aarch64 | arm64) arch_dl="arm64" ;;
+    *) echo "❌ Unsupported architecture: $arch" && return 1 ;;
+  esac
 
-  echo "⬇️  Downloading $binary_name ($arch)..."
-  curl -fsSL "$url" -o "$binary_name" && chmod +x "$binary_name" || {
-    echo "❌ Failed to download $binary_name from $url"
+  local filename="${base_name}-${version}.linux-${arch_dl}"
+  local url="https://github.com/docker/${base_name}/releases/download/${version}/${filename}"
+
+  echo "⬇️  Downloading $filename..."
+  curl -fsSL "$url" -o "$filename" || {
+    echo "❌ Failed to download $filename from $url"
     return 1
   }
 
-  echo "📦 Installing to $dest_path"
-  sudo mv "$binary_name" "$dest_path" || {
-    echo "❌ Failed to move binary to $dest_path"
-    return 1
-  }
-
-  echo "✅ $binary_name installed at $dest_path"
-  return 0
+  chmod +x "$filename"
+  sudo mv "$filename" "$dest"
+  echo "✅ Installed $base_name → $dest"
 }
