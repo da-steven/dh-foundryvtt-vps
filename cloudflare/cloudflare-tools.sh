@@ -2,7 +2,7 @@
 
 # === Resolve tool paths ===
 TOOL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_PATH="$TOOL_DIR/tools"
+TOOLS_PATH="$TOOL_DIR/utils"
 
 SETUP_SCRIPT="$TOOLS_PATH/cloudflare-tunnel-setup.sh"
 TEARDOWN_SCRIPT="$TOOLS_PATH/cloudflare-tunnel-teardown.sh"

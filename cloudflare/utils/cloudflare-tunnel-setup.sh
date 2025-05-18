@@ -55,6 +55,12 @@ if ! command -v cloudflared > /dev/null 2>&1; then
       exit 1
   }
   
+  if ! command -v cloudflared > /dev/null 2>&1; then
+    echo "❌ cloudflared install verification failed."
+    exit 1
+  fi
+fi
+
 # === Step 2: Ensure login ===
 if [[ ! -f "$CLOUDFLARE_CERT_PATH" ]]; then
   echo "🌐 Logging into Cloudflare..."
