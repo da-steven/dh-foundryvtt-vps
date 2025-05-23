@@ -27,11 +27,22 @@ CONFIG_SRC_DIR="${CLOUDFLARE_CERT_PATH%/*}"
 CONFIG_DEST_DIR="${CLOUDFLARE_CONFIG_DIR:-/etc/cloudflared}"
 CONFIG_FILE="$CONFIG_DEST_DIR/config.yml"
 SERVICE_NAME="cloudflared"
+CERT_FILE="${CLOUDFLARE_CERT_PATH:-$HOME/.cloudflared/cert.pem}"
 
 echo ""
 echo "⚠️ This will stop the systemd service, delete the tunnel, and remove local config/credentials."
 read -p "Are you sure you want to continue with teardown of tunnel '$TUNNEL_NAME'? (y/n): " CONFIRM
 [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && echo "❌ Aborted." && exit 1
+
+# === Check for cert.pem ===
+if [[ ! -f "$CERT_FILE" ]]; then
+  echo "❌ Missing required authentication certificate:"
+  echo "   $CERT_FILE"
+  echo ""
+  echo "➡️ Please re-authenticate with:"
+  echo "   cloudflared tunnel login"
+  exit 1
+fi
 
 # === Step 1: Stop and remove systemd service ===
 echo "🛑 Stopping and disabling systemd service: $SERVICE_NAME"

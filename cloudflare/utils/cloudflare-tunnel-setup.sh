@@ -27,7 +27,12 @@ CONFIG_SRC_DIR="${CLOUDFLARE_CERT_PATH%/*}"
 CONFIG_DEST_DIR="${CLOUDFLARE_CONFIG_DIR:-/etc/cloudflared}"
 CONFIG_FILE="$CONFIG_DEST_DIR/config.yml"
 TUNNEL_NAME="${TUNNEL_NAME:-foundry}"
-TUNNEL_HOSTNAME="${TUNNEL_HOSTNAME:-foundry.example.com}"
+
+# Prompt and optionally override the hostname
+DEFAULT_HOSTNAME="${TUNNEL_HOSTNAME:-foundry.example.com}"
+read -p "Tunnel hostname to use [$DEFAULT_HOSTNAME]: " INPUT_HOST
+TUNNEL_HOSTNAME="${INPUT_HOST:-$DEFAULT_HOSTNAME}"
+
 FOUNDRY_PORT="${FOUNDRY_PORT:-30000}"
 
 # === Step 1: Ensure cloudflared is installed ===
@@ -114,12 +119,49 @@ ingress:
   - service: http_status:404
 EOF
 
-# === Step 7: Create DNS route ===
+# === Step 7: Attempt DNS route creation, handle errors ===
 echo "🌐 Creating DNS route: $TUNNEL_HOSTNAME → $TUNNEL_UUID.cfargotunnel.com"
-cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME" || {
-  echo "❌ DNS route failed. You may need to remove an existing record."
+ROUTE_OUTPUT=$(cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME" 2>&1)
+if echo "$ROUTE_OUTPUT" | grep -q "with that host already exists"; then
+  echo "❌ A DNS record already exists for $TUNNEL_HOSTNAME"
+  echo ""
+  echo "Options:"
+  echo "1) Manually delete the existing DNS record"
+  echo "2) Enter a different hostname"
+  echo "3) Abort"
+  read -p "Choose an option [1/2/3]: " DNS_CHOICE
+  case "$DNS_CHOICE" in
+    2)
+      read -p "Enter new hostname: " TUNNEL_HOSTNAME
+      echo "🔁 Rewriting config with new hostname..."
+      sudo tee "$CONFIG_FILE" > /dev/null <<EOF
+tunnel: $TUNNEL_UUID
+credentials-file: $CREDENTIAL_FILE
+
+ingress:
+  - hostname: $TUNNEL_HOSTNAME
+    service: http://localhost:$FOUNDRY_PORT
+  - service: http_status:404
+EOF
+      echo "🌐 Retrying DNS route for new hostname..."
+      cloudflared tunnel route dns "$TUNNEL_NAME" "$TUNNEL_HOSTNAME" || {
+        echo "❌ DNS route creation failed again. Aborting."
+        exit 1
+      }
+      ;;
+    1)
+      echo "⛔ Please delete the conflicting record from Cloudflare and re-run this script."
+      exit 1
+      ;;
+    *)
+      echo "❌ Aborted by user."
+      exit 1
+      ;;
+  esac
+elif [[ $? -ne 0 ]]; then
+  echo "❌ Unexpected DNS error: $ROUTE_OUTPUT"
   exit 1
-}
+fi
 
 # === Step 8: Install systemd (one service per machine) ===
 if [[ "$ENABLE_TUNNEL_SERVICE" == "true" ]]; then
