@@ -117,9 +117,8 @@ if [[ ! -d "$SOURCE_DIR" ]]; then
 fi
 
 # === Run Backup ===
-rclone sync "$SOURCE_DIR" "$DEST_REMOTE" \
-  --backup-dir="$ARCHIVE_REMOTE" \
-  --b2-hard-delete \
+rclone copy "$SOURCE_DIR" "$DEST_REMOTE" \
+  --b2-version-at "now" \
   --transfers=8 \
   --checkers=4 \
   --fast-list \

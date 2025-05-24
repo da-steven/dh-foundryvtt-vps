@@ -17,7 +17,7 @@ log() {
 
 # === Start Log Entry ===
 log "📦 Starting backup: $SOURCE_DIR → $DEST_REMOTE"
-log "🗂️  Archive dir for changed/deleted: $ARCHIVE_REMOTE"
+log "🗂️  Archive dir for changed/deleted: $ARCHIVE_REMOTE"J
 log "📝 Logging to: $LOG_FILE"
 log "---------------------------------------------"
 
@@ -33,9 +33,8 @@ if [[ ! -d "$SOURCE_DIR" ]]; then
 fi
 
 # === Run Backup ===
-rclone sync "$SOURCE_DIR" "$DEST_REMOTE" \
-  --backup-dir="$ARCHIVE_REMOTE" \
-  --b2-hard-delete \
+rclone copy "$SOURCE_DIR" "$DEST_REMOTE" \
+  --b2-version-at "now" \
   --transfers=8 \
   --checkers=4 \
   --fast-list \
