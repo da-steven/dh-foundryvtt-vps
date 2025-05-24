@@ -34,7 +34,6 @@ fi
 
 # === Run Backup ===
 rclone copy "$SOURCE_DIR" "$DEST_REMOTE" \
-  --b2-version-at "now" \
   --transfers=8 \
   --checkers=4 \
   --fast-list \
