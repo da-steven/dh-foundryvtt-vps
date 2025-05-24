@@ -176,12 +176,6 @@ bash ~/backup-to-b2.sh
 rclone ls b2:foundry-backups
 ```
 
-Or to explore archives:
-
-```bash
-rclone ls b2:foundry-backups-archive/2024-05-18
-```
-
 ### Step 2: Download Backup
 
 We recommend restoring to a local backup folder first:
@@ -354,3 +348,214 @@ Then use cron to clean logs:
 ---
 
 Let me know if you want help setting up that script with full logging and rotation.
+
+
+--- 
+Great question!
+
+### 🟡 Where does the name `b2:foundry-backups` come from?
+
+It comes from your `rclone` **remote configuration**. Specifically:
+
+* `b2` = the **name of the remote** (defined in your `rclone config`)
+* `foundry-backups` = the **name of the bucket** inside that remote
+
+So:
+
+```bash
+rclone ls b2:foundry-backups
+```
+
+Means: “List all files in the `foundry-backups` bucket on the `b2` remote.”
+
+---
+
+### 🟢 How to see all defined remotes
+
+Run:
+
+```bash
+rclone listremotes
+```
+
+This will output something like:
+
+```
+b2:
+dropbox:
+gdrive:
+```
+
+These are all the **configured remotes** on your system (from `~/.config/rclone/rclone.conf`).
+
+---
+
+### 🟢 How to browse all contents of a remote
+
+You can use:
+
+```bash
+rclone lsd b2:
+```
+
+This lists all **buckets** under your `b2` remote.
+
+Then:
+
+```bash
+rclone ls b2:your-bucket-name
+```
+
+Will list files in that bucket.
+
+---
+
+### 🔍 Tip: Inspect remotes with config
+
+To see full details (keys, endpoints, etc.):
+
+```bash
+rclone config show
+```
+
+Or interactively:
+
+```bash
+rclone config
+```
+
+---
+
+Would you like a summary Markdown doc of these `rclone` basics for your project?
+
+# Rclone Quick Reference
+
+This guide explains how to use `rclone` to interact with your cloud storage (e.g., Backblaze B2).
+
+---
+
+## 📦 Remotes and Buckets
+
+- **Remote**: A named connection in `rclone` (e.g., `b2:`).
+- **Bucket**: A storage container inside the remote (e.g., `foundry-backups`).
+
+The full path format is:
+
+```
+remote:bucket-name/path/to/files
+```
+
+Example:
+
+```bash
+rclone ls b2:foundry-backups
+```
+
+---
+
+## 🔍 View Configured Remotes
+
+To list all remotes defined on your system:
+
+```bash
+rclone listremotes
+```
+
+Example output:
+
+```
+b2:
+dropbox:
+gdrive:
+```
+
+---
+
+## 📂 List Buckets in a Remote
+
+To see all buckets inside a remote (e.g. `b2`):
+
+```bash
+rclone lsd b2:
+```
+
+To list contents of a specific bucket:
+
+```bash
+rclone ls b2:foundry-backups
+```
+
+To list folders inside:
+
+```bash
+rclone lsf b2:foundry-backups/
+```
+
+---
+
+## ⚙️ Inspect Remote Configuration
+
+To see the full config file (credentials included):
+
+```bash
+rclone config show
+```
+
+To edit or inspect remotes interactively:
+
+```bash
+rclone config
+```
+
+---
+
+## 🧪 Test a Backup Connection
+
+Verify that your credentials are valid and the remote is accessible:
+
+```bash
+rclone about b2:foundry-backups
+```
+
+Or test transfer:
+
+```bash
+rclone copy ~/some-folder b2:foundry-backups/test-run --dry-run
+```
+
+---
+
+## 🔒 Config File Location
+
+Your remotes are stored in:
+
+```
+~/.config/rclone/rclone.conf
+```
+
+Keep this file secure!
+
+---
+
+## 🧼 Cleanup
+
+To delete a file or folder from the remote:
+
+```bash
+rclone delete b2:foundry-backups/path/to/file
+```
+
+To delete a whole folder:
+
+```bash
+rclone purge b2:foundry-backups/old-folder
+```
+
+> ⚠️ Be cautious with `purge`—it deletes everything under the path.
+
+---
+
+## 🔗 Resources
+
+- [Rclone Website](https://rclone.org/)
+- [Rclone Backblaze B2 Guide](https://rclone.org/b2/)

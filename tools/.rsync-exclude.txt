@@ -1,0 +1,13 @@
+# Exclude files/directories from our local backup with .rsync-exclude.txt
+
+# Ignore temp/cache/logs
+logs/
+cache/
+tmp/
+uploads/temp/
+
+# Ignore 3rd-party content
+Data/assets/third-party/
+
+# Ignore backup files
+*.bak
