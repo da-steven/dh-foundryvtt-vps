@@ -88,7 +88,7 @@ Create a file `~/backup-to-b2.sh`:
 SOURCE_DIR="$HOME/FoundryVTT-Data"
 BUCKET_NAME="dh-foundry-foundry-v12"
 DEST_REMOTE="b2:$BUCKET_NAME"
-ARCHIVE_REMOTE="b2:$BUCKET_NAME-archive/$(date +%Y-%m-%d)"
+ARCHIVE_REMOTE="b2:$BUCKET_NAME/archive/$(date +%Y-%m-%d)"
 LOG_DIR="$HOME/logs"
 LOG_FILE="$LOG_DIR/backup-log.txt"
 
@@ -141,7 +141,7 @@ log "============================================="
 Make it executable:
 
 ```bash
-chmod +x ~/tools/backup-to-b2.sh
+chmod +x ~/dh-foundryvtt-vps/tools/backup-to-b2.sh
 ```
 
 ---
@@ -155,7 +155,7 @@ crontab -e
 Add:
 
 ```bash
-0 1 * * * $HOME/ >> $HOME/logs/cron-backup-run.log 2>&1
+0 1 * * * $HOME/dh-foundryvtt-vps/tools/backup-to-b2.sh >> $HOME/logs/cron-backup-run.log 2>&1
 ```
 
 This lets you see cron-specific errors in a separate cron-backup-run.log, while your script's internal actions go into the regular backup-log.txt.

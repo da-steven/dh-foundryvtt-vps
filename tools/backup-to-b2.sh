@@ -4,7 +4,7 @@
 SOURCE_DIR="$HOME/FoundryVTT-Data"
 BUCKET_NAME="dh-foundry-foundry-v12"
 DEST_REMOTE="b2:$BUCKET_NAME"
-ARCHIVE_REMOTE="b2:$BUCKET_NAME-archive/$(date +%Y-%m-%d)"
+ARCHIVE_REMOTE="b2:$BUCKET_NAME/archive/$(date +%Y-%m-%d)"
 LOG_DIR="$HOME/logs"
 LOG_FILE="$LOG_DIR/backup-log.txt"
 
