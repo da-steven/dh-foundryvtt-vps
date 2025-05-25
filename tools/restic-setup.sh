@@ -15,7 +15,6 @@ for helper in "$ENV_LOADER" "$FILE_UTILS" "$RESTIC_UTILS"; do
   }
 done
 
-# === Ensure log directory and file ===
 safe_mkdir "$BACKUP_LOG_DIR" || exit 1
 LOG_FILE="$BACKUP_LOG_DIR/restic-setup-$(date +%F).log"
 
@@ -23,7 +22,7 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
 }
 
-# === Check for restic ===
+# === Install restic if missing ===
 if ! command -v restic &>/dev/null; then
   log "📦 Installing Restic..."
   sudo apt update && sudo apt install -y restic || {
@@ -48,7 +47,6 @@ if [[ -s "$RESTIC_PASSWORD_FILE" ]]; then
   log "🧾 Original password file backed up as: $BACKUP"
 fi
 
-# === Prompt for new password ===
 echo "🔐 Set a password for the Restic repository."
 read -s -p "Enter password: " PW1; echo
 read -s -p "Confirm password: " PW2; echo
@@ -62,39 +60,15 @@ echo "$PW1" > "$RESTIC_PASSWORD_FILE"
 chmod 600 "$RESTIC_PASSWORD_FILE"
 log "✅ Password saved to: $RESTIC_PASSWORD_FILE"
 
-# === Prepare repo directory ===
 safe_mkdir "$RESTIC_REPO" || exit 1
-
-# === Optional: Check for disk space ===
 check_disk_space "$RESTIC_REPO" 500 || {
   log "❌ Not enough free space in $RESTIC_REPO. Aborting."
   exit 1
 }
 
-# === Initialize restic repo ===
 init_restic_repo
-
-# === Setup retention policy ===
-DAILY="${RESTIC_KEEP_DAILY:-7}"
-WEEKLY="${RESTIC_KEEP_WEEKLY:-4}"
-MONTHLY="${RESTIC_KEEP_MONTHLY:-6}"
-
-log "🧹 Applying retention policy: daily=$DAILY, weekly=$WEEKLY, monthly=$MONTHLY"
-restic \
-  --repo "$RESTIC_REPO" \
-  --password-file "$RESTIC_PASSWORD_FILE" \
-  forget \
-  --keep-daily "$DAILY" \
-  --keep-weekly "$WEEKLY" \
-  --keep-monthly "$MONTHLY" \
-  --prune >> "$LOG_FILE" 2>&1
 
 log ""
 log "🎉 Restic setup complete."
 log "🗂️  Repo: $RESTIC_REPO"
-log "🗓️ Retention policy:"
-log "  - Daily:     $DAILY"
-log "  - Weekly:    $WEEKLY"
-log "  - Monthly:   $MONTHLY"
 log "🔐 Password File: $RESTIC_PASSWORD_FILE"
-log ""
