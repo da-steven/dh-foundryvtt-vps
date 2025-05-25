@@ -1,34 +1,45 @@
 #!/bin/bash
-#
-# Utility functions for safely managing file and folder operations,
-# including safe creation, overwrite prompts, backup copies, and disk space checks.
+# === file-utils.sh ===
+# Shared filesystem utilities for Foundry VPS setup and backup scripts
 
-# === Create a directory if it doesn't exist ===
-safe_mkdir() {
-  local dir="$1"
-  if [[ -d "$dir" ]]; then
-    echo "✅ Directory already exists: $dir"
-  else
-    echo "📁 Creating directory: $dir"
-    sudo mkdir -p "$dir" || {
-      echo "❌ Failed to create: $dir"
-      return 1
-    }
+# === ensure_ownership ===
+# Ensures that the given path is owned by the current user and group.
+ensure_ownership() {
+  local target="$1"
+  local uid=$(id -u)
+  local gid=$(id -g)
+
+  if [[ -z "$target" ]]; then
+    echo "❌ ensure_ownership: No target path provided"
+    return 1
   fi
+
+  if [[ ! -e "$target" ]]; then
+    echo "⚠️  ensure_ownership: Target does not exist: $target"
+    return 1
+  fi
+
+  sudo chown -R "$uid:$gid" "$target"
 }
 
-# === Confirm before overwriting a file or folder ===
-confirm_overwrite() {
-  local path="$1"
-  if [[ -e "$path" ]]; then
-    echo "⚠️ $path already exists."
-    read -p "Do you want to overwrite it? (y/n): " CONFIRM
-    if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-      echo "⛔ Skipping overwrite of $path"
-      return 1
-    fi
+# === safe_mkdir ===
+# Creates a directory if it doesn't exist, with sudo and correct ownership.
+safe_mkdir() {
+  local dir="$1"
+
+  if [[ -z "$dir" ]]; then
+    echo "❌ safe_mkdir: No directory provided"
+    return 1
   fi
-  return 0
+
+  if [[ -d "$dir" ]]; then
+    echo "✅ Directory already exists: $dir"
+    return 0
+  fi
+
+  echo "📁 Creating directory: $dir"
+  sudo mkdir -p "$dir"
+  ensure_ownership "$dir"
 }
 
 # === Confirm before deleting a path ===
@@ -47,43 +58,63 @@ confirm_delete() {
   fi
 }
 
-# === Check available disk space (in MB) at given path ===
-check_disk_space() {
+# === confirm_overwrite ===
+# Prompts user to overwrite a file or directory if it exists.
+confirm_overwrite() {
   local path="$1"
-  local required_mb="$2"
-  local available_mb
-  available_mb=$(df --output=avail -m "$path" | tail -1)
 
-  if [[ "$available_mb" -lt "$required_mb" ]]; then
-    echo "❌ Not enough disk space at $path. Required: ${required_mb}MB, Available: ${available_mb}MB"
-    return 1
+  if [[ -e "$path" ]]; then
+    echo "⚠️  $path already exists."
+    read -p "Do you want to overwrite it? (y/n): " OVERWRITE
+    if [[ ! "$OVERWRITE" =~ ^[Yy]$ ]]; then
+      echo "⛔ Aborted by user."
+      return 1
+    fi
   fi
+
   return 0
 }
 
-# === Backup a Foundry data folder into backup_root with a timestamp ===
+# === check_disk_space ===
+# Checks if the given path has at least the requested number of MB free.
+check_disk_space() {
+  local path="$1"
+  local required_mb="$2"
+
+  if [[ ! -d "$path" ]]; then
+    echo "⚠️  Disk check path does not exist. Creating: $path"
+    sudo mkdir -p "$path"
+    ensure_ownership "$path"
+  fi
+
+  local available_mb
+  available_mb=$(df -Pm "$path" | awk 'NR==2 {print $4}')
+
+  if (( available_mb < required_mb )); then
+    echo "❌ Only ${available_mb}MB free at $path. Required: ${required_mb}MB"
+    return 1
+  fi
+
+  echo "✅ Disk space OK at $path: ${available_mb}MB available"
+  return 0
+}
+
+# === backup_data_folder ===
+# Makes a dated copy of a folder for manual backup.
 backup_data_folder() {
   local source="$1"
-  local backup_root="$2"
+  local target_base="$2"
 
   if [[ ! -d "$source" ]]; then
-    echo "❌ Source data folder not found: $source"
+    echo "❌ Source directory not found: $source"
     return 1
   fi
 
   local timestamp
-  timestamp=$(date +"%Y-%m-%d_%H%M")
-  local base_name
-  base_name=$(basename "$source")
-  local dest="$backup_root/${base_name}-backup-$timestamp"
+  timestamp=$(date +%Y-%m-%d-%H%M%S)
+  local dest="$target_base/backup-before-overwrite-$timestamp"
 
   echo "📦 Backing up $source → $dest"
-  sudo mkdir -p "$backup_root"
-
-  sudo cp -r "$source" "$dest" || {
-    echo "❌ Failed to copy."
-    return 1
-  }
-
-  echo "✅ Backup complete: $dest"
+  cp -a "$source" "$dest"
+  ensure_ownership "$dest"
 }
