@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# === Bootstrap Environment ===
+# === Config ===
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UTILS_DIR="$SCRIPT_DIR/../utils"
 ENV_LOADER="$UTILS_DIR/load-env.sh"
@@ -13,36 +13,21 @@ for helper in "$ENV_LOADER" "$FILE_UTILS"; do
   }
 done
 
-# === Configuration from ENV ===
-TAG=$(echo "$FOUNDRY_TAG" | tr -cd '[:alnum:]-')
-TAG_SUFFIX=${TAG:+-$TAG}
+BACKUP_SOURCE="${FOUNDRY_DATA_DIR%/}/foundry-${FOUNDRY_TAG}/Data"
+BACKUP_BASE="${FOUNDRY_BACKUP_DIR%/}/rsync-backups"
+EXCLUDE_FILE="$SCRIPT_DIR/.rsync-exclude.txt"
+LOG_FILE="${BACKUP_LOG_DIR%/}/rsync-backup-$(date +%F).log"
 
-BACKUP_SOURCE="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX/Data"
-BACKUP_BASE="${FOUNDRY_BACKUP_DIR%/}/foundry$TAG_SUFFIX"
-EXCLUDE_FILE="$SCRIPT_DIR/tools/.rsync-exclude.txt"
-LOG_DIR="${LOG_DIR:-$HOME/logs}"
-LOG_FILE="$LOG_DIR/local-backup-$(date +%Y-%m-%d).log"
-RETAIN_COUNT="${BACKUP_RETAIN_COUNT_LOCAL:-14}"
-REQUIRED_MB=1000
-
-# === Date Directories ===
-TODAY=$(date +%Y-%m-%d)
-YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+TODAY=$(date +%F)
+YESTERDAY=$(date -d "yesterday" +%F)
 TODAY_DIR="$BACKUP_BASE/$TODAY"
 YESTERDAY_DIR="$BACKUP_BASE/$YESTERDAY"
 
-# === Prepare Directories ===
-safe_mkdir "$LOG_DIR" || exit 1
 safe_mkdir "$BACKUP_BASE" || exit 1
-check_disk_space "$BACKUP_BASE" "$REQUIRED_MB" || {
-  echo "❌ Not enough disk space for backup. Aborting."
-  exit 1
-}
-sudo chown -R "$USER:$USER" "$BACKUP_BASE" "$LOG_DIR"
+safe_mkdir "$BACKUP_LOG_DIR" || exit 1
 
-# === Logging Function ===
 log() {
-  echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
+  echo "$(date '+%F %T') | $*" | tee -a "$LOG_FILE"
 }
 
 log "📦 Starting rsync local backup"
@@ -52,7 +37,6 @@ log "🧾 Exclude file: $EXCLUDE_FILE"
 log "📝 Log: $LOG_FILE"
 log "-------------------------------------------"
 
-# === Safety Checks ===
 if ! command -v rsync &>/dev/null; then
   log "❌ rsync not found. Aborting."
   exit 1
@@ -63,14 +47,12 @@ if [[ ! -d "$BACKUP_SOURCE" ]]; then
   exit 1
 fi
 
-AVAILABLE_MB=$(df -Pm "$BACKUP_BASE" | awk 'NR==2 {print $4}')
-if (( AVAILABLE_MB < REQUIRED_MB )); then
-  log "❌ Only ${AVAILABLE_MB}MB free. Minimum required: ${REQUIRED_MB}MB"
+check_disk_space "$BACKUP_BASE" 1000 || {
+  log "❌ Not enough disk space. Aborting."
   exit 1
-fi
+}
 
-# === Perform Backup ===
-mkdir -p "$TODAY_DIR"
+safe_mkdir "$TODAY_DIR" || exit 1
 
 if [[ -d "$YESTERDAY_DIR" ]]; then
   LINK_DEST="--link-dest=$YESTERDAY_DIR"
@@ -93,10 +75,10 @@ else
   exit 1
 fi
 
-# === Retention Rotation ===
-log "🧹 Rotating backups. Keeping last $RETAIN_COUNT..."
+log "🧹 Rotating backups. Keeping last ${BACKUP_RETAIN_COUNT_LOCAL}..."
+
 cd "$BACKUP_BASE" || exit 1
-ls -1d */ | sort | head -n -"$RETAIN_COUNT" | while read -r OLD; do
+ls -1d */ | sort | head -n -"${BACKUP_RETAIN_COUNT_LOCAL}" | while read -r OLD; do
   log "🗑️  Removing old backup: $OLD"
   rm -rf "$OLD"
 done
