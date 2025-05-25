@@ -19,13 +19,11 @@ MAX_RETRIES=3
 FORCE_DOWNLOAD=0
 USE_BUILDKIT=0
 
-# === Prompt: Instance Tag (Optional) ===
-echo "🔖 Foundry Install: Optional name (e.g. 'main', 'v13')"
-read -p "Tag (or leave blank): " TAG
-TAG=$(echo "$TAG" | tr -cd '[:alnum:]-')
+# === Use Tag from ENV ===
+TAG=$(echo "$FOUNDRY_TAG" | tr -cd '[:alnum:]-')
 TAG_SUFFIX=${TAG:+-$TAG}
 
-# === Define Paths ===
+# === Define Paths using ENV + optional tag ===
 INSTALL_DIR="${FOUNDRY_INSTALL_DIR%/}/foundry$TAG_SUFFIX"
 DATA_DIR="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX"
 CONTAINER_NAME="foundryvtt$TAG_SUFFIX"

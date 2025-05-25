@@ -1,23 +1,36 @@
 #!/bin/bash
 
-# === Config ===
-SOURCE_DIR="$HOME/FoundryVTT-Data"
-BUCKET_NAME="dh-foundry-foundry-v12"
-DEST_REMOTE="b2:$BUCKET_NAME"
-ARCHIVE_REMOTE="b2:$BUCKET_NAME/archive/$(date +%Y-%m-%d)"
-LOG_DIR="$HOME/logs"
-LOG_FILE="$LOG_DIR/b2-backup-log.txt"
+# === Bootstrap Environment ===
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UTILS_DIR="$SCRIPT_DIR/../utils"
+ENV_LOADER="$UTILS_DIR/load-env.sh"
+FILE_UTILS="$UTILS_DIR/file-utils.sh"
 
-mkdir -p "$LOG_DIR"
+for helper in "$ENV_LOADER" "$FILE_UTILS"; do
+  [[ -f "$helper" ]] && source "$helper" || {
+    echo "❌ Missing required helper: $helper"
+    exit 1
+  }
+done
 
-# === Log Function ===
+# === Config from ENV ===
+TAG=$(echo "$FOUNDRY_TAG" | tr -cd '[:alnum:]-')
+TAG_SUFFIX=${TAG:+-$TAG}
+SOURCE_DIR="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX/Data"
+DEST_REMOTE="b2:$B2_BUCKET_NAME"
+ARCHIVE_REMOTE="b2:$B2_BUCKET_NAME/archive/$(date +%Y-%m-%d)"
+LOG_FILE="${LOG_DIR%/}/b2-backup-log-$(date +%Y-%m-%d).txt"
+
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# === Logging ===
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
 }
 
 # === Start Log Entry ===
 log "📦 Starting backup: $SOURCE_DIR → $DEST_REMOTE"
-log "🗂️  Archive dir for changed/deleted: $ARCHIVE_REMOTE"J
+log "🗂️  Archive dir for changed/deleted: $ARCHIVE_REMOTE"
 log "📝 Logging to: $LOG_FILE"
 log "---------------------------------------------"
 

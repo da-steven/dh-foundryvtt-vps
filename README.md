@@ -106,6 +106,11 @@ sudo cloudflared service install <YOUR-TOKEN>
 ```bash
 cloudflared tunnel run --token <YOUR-TOKEN>
 ```
+---
+
+## ⚙️ Next Steps
+
+The **tools/** directory includes a README and scripts for setting up local and remote backups.
 
 ---
 
