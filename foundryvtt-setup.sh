@@ -19,21 +19,23 @@ MAX_RETRIES=3
 FORCE_DOWNLOAD=0
 USE_BUILDKIT=0
 
-# === Use Tag from ENV ===
-TAG=$(echo "$FOUNDRY_TAG" | tr -cd '[:alnum:]-')
-TAG_SUFFIX=${TAG:+-$TAG}
-
-# === Define Paths using ENV + optional tag ===
+# === Define Paths ===
+TAG_SUFFIX=${FOUNDRY_TAG:+-$FOUNDRY_TAG}
 INSTALL_DIR="${FOUNDRY_INSTALL_DIR%/}/foundry$TAG_SUFFIX"
 DATA_DIR="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX"
 CONTAINER_NAME="foundryvtt$TAG_SUFFIX"
 FOUNDRY_PORT="${FOUNDRY_PORT:-30000}"
+
+# === Define UID/GID for Docker user mapping ===
+FOUNDRY_UID=$(id -u)
+FOUNDRY_GID=$(id -g)
 
 echo ""
 echo "📁 App Install Dir:     $INSTALL_DIR"
 echo "📂 Data Directory:      $DATA_DIR"
 echo "🐳 Docker Container:    $CONTAINER_NAME"
 echo "🌐 Port:                $FOUNDRY_PORT"
+echo "👤 UID:GID:             $FOUNDRY_UID:$FOUNDRY_GID"
 echo ""
 
 read -p "Continue with these settings? (y/n): " CONFIRM
@@ -49,11 +51,9 @@ if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
 fi
 
 # === Existing Install Directory ===
-if [[ -d "$INSTALL_DIR" ]]; then
-  if [[ "$(ls -A "$INSTALL_DIR")" ]]; then
-    echo "⚠️ Directory $INSTALL_DIR is not empty."
-    confirm_overwrite "$INSTALL_DIR" || exit 1
-  fi
+if [[ -d "$INSTALL_DIR" && "$(ls -A "$INSTALL_DIR")" ]]; then
+  echo "⚠️ Directory $INSTALL_DIR is not empty."
+  confirm_overwrite "$INSTALL_DIR" || exit 1
   sudo rm -rf "$INSTALL_DIR"
 fi
 
@@ -168,6 +168,7 @@ services:
   foundry:
     build: .
     container_name: $CONTAINER_NAME
+    user: "${FOUNDRY_UID}:${FOUNDRY_GID}"
     ports:
       - "127.0.0.1:$FOUNDRY_PORT:$FOUNDRY_PORT"
     volumes:
