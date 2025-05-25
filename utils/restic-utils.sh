@@ -2,11 +2,18 @@
 # === restic-utils.sh ===
 # Shared helpers for all Restic operations
 
-RESTIC_PASSWORD_FILE="$RESTIC_PASSWORD_FILE"
-RESTIC_REPO="$RESTIC_REPO"
+# Load envs if not already loaded
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ -f "$SCRIPT_DIR/.env.defaults" ]] && source "$SCRIPT_DIR/.env.defaults"
+[[ -f "$SCRIPT_DIR/.env.local" ]] && source "$SCRIPT_DIR/.env.local"
 
+RESTIC_PASSWORD_FILE="${RESTIC_PASSWORD_FILE}"
+RESTIC_REPO="${RESTIC_REPO}"
+
+# Logging setup
 LOG_DIR="${RESTIC_LOG_DIR:-$FOUNDRY_BACKUP_DIR/logs}"
 mkdir -p "$LOG_DIR"
+LOG_FILE="${LOG_FILE:-$LOG_DIR/restic-generic.log}"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
@@ -47,24 +54,28 @@ get_restic_repo_path() {
 # Check if the repository is valid
 restic_repo_check() {
   check_restic_password_file || return 1
-  restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" snapshots &>/dev/null
+  local repo_path
+  repo_path="$(get_restic_repo_path)"
+  restic --repo "$repo_path" --password-file "$RESTIC_PASSWORD_FILE" snapshots &>/dev/null
   if [[ $? -ne 0 ]]; then
-    log "❌ Repository at $RESTIC_REPO is not valid or not initialized."
+    log "❌ Repository at $repo_path is not valid or not initialized."
     return 1
   fi
-  log "✅ Restic repository is valid: $RESTIC_REPO"
+  log "✅ Restic repository is valid: $repo_path"
   return 0
 }
 
 # Initialize the repository if not already done
 init_restic_repo() {
   check_restic_password_file || return 1
+  local repo_path
+  repo_path="$(get_restic_repo_path)"
   if restic_repo_check; then
     log "ℹ️ Repository already initialized."
     return 0
   fi
-  log "📦 Initializing restic repo at: $RESTIC_REPO"
-  restic init --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE"
+  log "📦 Initializing restic repo at: $repo_path"
+  restic init --repo "$repo_path" --password-file "$RESTIC_PASSWORD_FILE"
 }
 
 # Log summary after a restic operation
