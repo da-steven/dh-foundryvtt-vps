@@ -19,7 +19,7 @@ TAG_SUFFIX=${TAG:+-$TAG}
 
 BACKUP_SOURCE="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX/Data"
 BACKUP_BASE="${FOUNDRY_BACKUP_DIR%/}/foundry$TAG_SUFFIX"
-EXCLUDE_FILE="$SCRIPT_DIR/.rsync-exclude.txt"
+EXCLUDE_FILE="$SCRIPT_DIR/tools/.rsync-exclude.txt"
 LOG_DIR="${LOG_DIR:-$HOME/logs}"
 LOG_FILE="$LOG_DIR/local-backup-$(date +%Y-%m-%d).log"
 RETAIN_COUNT="${BACKUP_RETAIN_COUNT_LOCAL:-14}"
