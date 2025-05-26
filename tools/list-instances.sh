@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # === Bootstrap environment ===
-UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../utils" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+UTILS_DIR="$SCRIPT_DIR/utils"
+source "$UTILS_DIR/load-env.sh"
 ENV_LOADER="$UTILS_DIR/load-env.sh"
 FILE_UTILS="$UTILS_DIR/file-utils.sh"
 
