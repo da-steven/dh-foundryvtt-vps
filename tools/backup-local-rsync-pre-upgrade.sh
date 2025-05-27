@@ -13,7 +13,10 @@ else
   exit 1
 fi
 
-source "$UTILS_DIR/foundry-config.sh"
+# Load unified configuration and helpers
+load_helpers \
+  "foundry-config.sh" \
+  "file-utils.sh" 
 
 echo "🔄 Pre-Upgrade Backup"
 echo "===================="
@@ -36,7 +39,6 @@ BACKUP_NAME="pre-upgrade-$(date +%Y-%m-%d-%H%M%S)"
 UPGRADE_BACKUP_DIR="$FOUNDRY_RSYNC_BACKUP_PATH/$BACKUP_NAME"
 
 # Ensure backup directory exists
-source "$UTILS_DIR/file-utils.sh"
 safe_mkdir "$FOUNDRY_RSYNC_BACKUP_PATH" || exit 1
 
 # Create the backup
