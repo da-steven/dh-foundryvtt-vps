@@ -11,18 +11,10 @@ else
   exit 1
 fi
 
-# Load unified configuration and additional helpers
-helpers=(
-  "$UTILS_DIR/foundry-config.sh"
-  "$UTILS_DIR/file-utils.sh"
-)
-
-for helper in "${helpers[@]}"; do
-  [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing required helper: $helper"
-    exit 1
-  }
-done
+# Load unified configuration and helpers
+load_helpers \
+  "foundry-config.sh" \
+  "file-utils.sh" 
 
 # === Configuration ===
 DEST_REMOTE="b2:$B2_BUCKET_NAME"

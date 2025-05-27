@@ -12,17 +12,9 @@ else
 fi
 
 # Load unified configuration and helpers
-helpers=(
-  "$UTILS_DIR/foundry-config.sh"
-  "$UTILS_DIR/file-utils.sh"
-)
-
-for helper in "${helpers[@]}"; do
-  [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing required helper: $helper"
-    exit 1
-  }
-done
+load_helpers \
+  "foundry-config.sh" \
+  "file-utils.sh" 
 
 # === Setup logging ===
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1

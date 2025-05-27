@@ -12,7 +12,8 @@ else
 fi
 
 # Load unified configuration helper
-source "$UTILS_DIR/foundry-config.sh"
+load_helpers \
+  "foundry-config.sh" 
 
 echo "🔍 Validating Foundry VTT Configuration"
 echo "========================================"
@@ -72,15 +73,11 @@ else
   echo "❌ Docker is not installed"
 fi
 
-# Check backup tools
+# Check and install backup tools
 echo ""
 echo "🛠️ Checking backup tools..."
 for tool in rsync restic rclone; do
-  if command -v "$tool" >/dev/null 2>&1; then
-    echo "✅ $tool is installed"
-  else
-    echo "⚠️  $tool is not installed"
-  fi
+  check_tool "$tool" || install_tool "$tool"
 done
 
 # Check disk space

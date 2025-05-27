@@ -11,8 +11,9 @@ else
   exit 1
 fi
 
-# Load unified configuration
-source "$UTILS_DIR/foundry-config.sh"
+# Load unified configuration and helpers
+load_helpers \
+  "foundry-config.sh" 
 
 # === Configuration ===
 MODE="table"  # default output
