@@ -14,8 +14,6 @@ fi
 
 # === Load helper scripts ===
 load_helpers \
-  "foundry-config.sh" \
-  "file-utils.sh" \
   "tool-utils.sh"
 
 # === Warn user about firewall setup ===
