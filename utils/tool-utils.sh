@@ -1,8 +1,8 @@
 #!/bin/bash
 # === tool-utils.sh ===
-# Shared helpers verifiying and install required tools (restic, reclone, rsynce, etc.)
+# Shared helpers for verifying and installing required tools (restic, rclone, rsync, etc.)
 
-# Auto tool installation flag
+# 🛠️ Auto-install flag
 AUTO_INSTALL=false
 
 # 🔍 Check if a tool is installed
@@ -39,16 +39,18 @@ install_tool() {
   }
 }
 
-# 🔧 Parse --yes flag
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --yes|-y)
-      AUTO_INSTALL=true
-      shift
-      ;;
-    *)
-      echo "Usage: $0 [--yes|-y]" >&2
-      exit 1
-      ;;
-  esac
-done
+# 🧪 CLI arg parsing (only when script is executed directly)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes|-y)
+        AUTO_INSTALL=true
+        shift
+        ;;
+      *)
+        echo "Usage: $(basename "$0") [--yes|-y]" >&2
+        exit 1
+        ;;
+    esac
+  done
+fi
