@@ -1,40 +1,65 @@
 #!/bin/bash
-# === backup-local-restic.sh ===
+# tools/backup-local-restic.sh - Local encrypted backups using restic
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-source "$UTILS_DIR/load-env.sh"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
-RESTIC_UTILS="$UTILS_DIR/restic-utils.sh"
+# Find and source load-env.sh
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       
+else
+  echo "❌ Cannot find utils/load-env.sh" >&2
+  exit 1
+fi
 
-for helper in "$ENV_LOADER" "$FILE_UTILS" "$RESTIC_UTILS"; do
+# Load unified configuration and helpers
+helpers=(
+  "$UTILS_DIR/foundry-config.sh"
+  "$UTILS_DIR/file-utils.sh"
+  "$UTILS_DIR/restic-utils.sh"
+)
+
+for helper in "${helpers[@]}"; do
   [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing helper: $helper"
+    echo "❌ Missing required helper: $helper"
     exit 1
   }
 done
 
-safe_mkdir "$BACKUP_LOG_DIR" || exit 1
-LOG_FILE="$BACKUP_LOG_DIR/restic-backup-$(date +%F).log"
+# === Setup logging ===
+safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
+LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/restic-backup-$(date +%F).log"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
 }
 
-BACKUP_SOURCE="${FOUNDRY_DATA_DIR%/}/foundry-${FOUNDRY_TAG}/Data"
-check_disk_space "$BACKUP_SOURCE" 500 || {
+log "📦 Starting Restic backup for: $FOUNDRY_BACKUP_SOURCE"
+log "📂 Repository: $RESTIC_REPO"
+log "📝 Log: $LOG_FILE"
+log "---------------------------------------------"
+
+# === Pre-flight checks ===
+check_disk_space "$FOUNDRY_BACKUP_SOURCE" 500 || {
   log "❌ Not enough disk space. Aborting."
   exit 1
 }
 
-check_restic_password_file || exit 1
+# Validate restic environment and repository
+validate_restic_env || exit 1
 restic_repo_check || exit 1
 
-log "📦 Starting Restic backup for $BACKUP_SOURCE"
-restic \
-  --repo "$RESTIC_REPO" \
-  --password-file "$RESTIC_PASSWORD_FILE" \
-  backup "$BACKUP_SOURCE" --verbose
+# === Run the backup ===
+log "🔄 Running restic backup..."
+if run_restic_backup "$FOUNDRY_BACKUP_SOURCE"; then
+  log "✅ Restic backup completed successfully"
+else
+  log "❌ Restic backup failed"
+  exit 1
+fi
 
-log_restic_result $?
+log "📊 Repository statistics:"
+restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" stats latest 2>/dev/null | while read -r line; do
+  log "   $line"
+done
+
+log "============================================="

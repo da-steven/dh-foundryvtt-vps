@@ -189,3 +189,18 @@ tar -xzf foundry-backup-2024-05-18.tar.gz -C /opt/foundry/main --strip-component
 | Automation         | Use `cron` or `systemd` timer          |
 
 Would you like a working `backup.sh` and `restore.sh` script pair next?
+
+
+
+# CRON EXAMPLES
+# Daily backups at 2 AM
+0 2 * * * cd /path/to/repo && ./tools/backup-local-rsync.sh >> /var/log/cron-foundry.log 2>&1
+
+# Daily restic backup at 2:30 AM  
+30 2 * * * cd /path/to/repo && ./tools/backup-local-restic.sh >> /var/log/cron-foundry.log 2>&1
+
+# Weekly restic prune on Sunday at 3 AM
+0 3 * * 0 cd /path/to/repo && ./tools/backup-local-restic-prune.sh >> /var/log/cron-foundry.log 2>&1
+
+# Daily remote backup at 4 AM
+0 4 * * * cd /path/to/repo && ./tools/backup-remote-b2-rclone.sh >> /var/log/cron-foundry.log 2>&1

@@ -1,42 +1,60 @@
 #!/bin/bash
-# === backup-local-restic-prune.sh ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-source "$UTILS_DIR/load-env.sh"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
-RESTIC_UTILS="$UTILS_DIR/restic-utils.sh"
+# tools/backup-local-restic-prune.sh - Prune old restic snapshots
 
-for helper in "$ENV_LOADER" "$FILE_UTILS" "$RESTIC_UTILS"; do
+# Find and source load-env.sh
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       
+else
+  echo "❌ Cannot find utils/load-env.sh" >&2
+  exit 1
+fi
+
+# Load unified configuration and helpers
+helpers=(
+  "$UTILS_DIR/foundry-config.sh"
+  "$UTILS_DIR/file-utils.sh"
+  "$UTILS_DIR/restic-utils.sh"
+)
+
+for helper in "${helpers[@]}"; do
   [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing helper: $helper"
+    echo "❌ Missing required helper: $helper"
     exit 1
   }
 done
 
-safe_mkdir "$BACKUP_LOG_DIR" || exit 1
-LOG_FILE="$BACKUP_LOG_DIR/restic-prune-$(date +%F).log"
+# === Setup logging ===
+safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
+LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/restic-prune-$(date +%F).log"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
 }
 
-check_restic_password_file || exit 1
+log "🧹 Starting Restic prune operation"
+log "📂 Repository: $RESTIC_REPO"
+log "📝 Log: $LOG_FILE"
+log "🔄 Retention: ${RESTIC_KEEP_DAILY}d/${RESTIC_KEEP_WEEKLY}w/${RESTIC_KEEP_MONTHLY}m"
+log "---------------------------------------------"
+
+# === Pre-flight checks ===
+validate_restic_env || exit 1
 restic_repo_check || exit 1
 
-KEEP_DAILY="${RESTIC_KEEP_DAILY:-7}"
-KEEP_WEEKLY="${RESTIC_KEEP_WEEKLY:-4}"
-KEEP_MONTHLY="${RESTIC_KEEP_MONTHLY:-6}"
+# === Run the prune ===
+log "🔄 Running restic forget & prune..."
+if run_restic_prune; then
+  log "✅ Restic prune completed successfully"
+else
+  log "❌ Restic prune failed"
+  exit 1
+fi
 
-log "🧹 Running Restic prune: keep $KEEP_DAILY daily, $KEEP_WEEKLY weekly, $KEEP_MONTHLY monthly"
+log "📊 Repository statistics after prune:"
+restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" stats 2>/dev/null | while read -r line; do
+  log "   $line"
+done
 
-restic \
-  --repo "$RESTIC_REPO" \
-  --password-file "$RESTIC_PASSWORD_FILE" \
-  forget \
-  --keep-daily "$KEEP_DAILY" \
-  --keep-weekly "$KEEP_WEEKLY" \
-  --keep-monthly "$KEEP_MONTHLY" \
-  --prune
-
-log_restic_result $?
+log "============================================="

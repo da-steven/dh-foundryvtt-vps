@@ -120,3 +120,62 @@ Your Cloudflare tunnel **does not need to be reinstalled** as long as:
 ---
 
 Let me know if you want a "reset" shell script or a wrapper that automates the cleanup + reinstall.
+
+
+
+
+Here's how to set up your `cron` jobs for the requested backups. Each entry ensures logs are written and uses proper ENV loading where needed.
+
+---
+
+## ✅ **1. Edit Crontab**
+
+Run:
+
+```bash
+crontab -e
+```
+
+Then add the following lines:
+
+```bash
+# === Daily Backblaze B2 backup at 1:00 AM ===
+0 1 * * * /bin/bash $HOME/foundry/tools/backup-remote-b2-rclone.sh >> $HOME/logs/cron-b2-backup.log 2>&1
+
+# === Daily Restic backup at 2:00 AM ===
+0 2 * * * /bin/bash $HOME/foundry/tools/backup-local-restic.sh >> $HOME/logs/cron-restic-backup.log 2>&1
+
+# === Weekly Restic prune at 3:00 AM every Sunday ===
+0 3 * * 0 /bin/bash $HOME/foundry/tools/backup-local-restic-prune.sh >> $HOME/logs/cron-restic-prune.log 2>&1
+```
+
+> 🔁 Adjust times as needed to avoid overlap or high load periods.
+
+---
+
+## 🔒 **Permissions Check**
+
+Ensure each script:
+
+* Is **executable**:
+
+  ```bash
+  chmod +x $HOME/foundry/tools/backup-remote-b2-rclone.sh
+  chmod +x $HOME/foundry/tools/backup-local-restic.sh
+  chmod +x $HOME/foundry/tools/backup-local-restic-prune.sh
+  ```
+* References the correct `env` loader via `utils/load-env.sh` if needed.
+
+---
+
+## 🧪 **Test Each Script Manually First**
+
+You can run each manually like:
+
+```bash
+bash $HOME/foundry/tools/backup-local-restic.sh
+```
+
+to verify correct behavior and logging.
+
+Would you like a dry-run option added to these scripts for safer testing?

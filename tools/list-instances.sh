@@ -1,30 +1,20 @@
 #!/bin/bash
+# tools/list-instances.sh - List all Foundry VTT instances
 
-# === Bootstrap environment ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-source "$UTILS_DIR/load-env.sh"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
-
-if [[ -f "$ENV_LOADER" ]]; then
-  source "$ENV_LOADER"
+# Find and source load-env.sh
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       
 else
-  echo "❌ Missing: $ENV_LOADER"
+  echo "❌ Cannot find utils/load-env.sh" >&2
   exit 1
 fi
 
-if [[ -f "$FILE_UTILS" ]]; then
-  source "$FILE_UTILS"
-else
-  echo "❌ Missing: $FILE_UTILS"
-  exit 1
-fi
+# Load unified configuration
+source "$UTILS_DIR/foundry-config.sh"
 
-# === Config ===
-INSTALL_BASE="${FOUNDRY_INSTALL_DIR:-/opt/FoundryVTT}"
-DATA_BASE="${FOUNDRY_DATA_DIR:-$HOME/FoundryVTT-Data}"
-
+# === Configuration ===
 MODE="table"  # default output
 if [[ "$1" == "--json" ]]; then
   MODE="json"
@@ -62,12 +52,19 @@ print_quiet_row() {
 found_any=false
 [[ "$MODE" == "table" ]] && print_table_header
 
-for dir in "$INSTALL_BASE"/foundry-*; do
+# Look for foundry-* directories in install base
+for dir in "$FOUNDRY_INSTALL_DIR"/foundry-*; do
   [[ -d "$dir" ]] || continue
+  
+  # Extract tag from directory name (foundry-v12 -> v12)
   tag="${dir##*/foundry-}"
+  [[ "$tag" == "*" ]] && continue  # Skip if no matches
+  
   install_path="$dir"
-  data_path="${DATA_BASE}-${tag}"
+  data_path="${FOUNDRY_DATA_DIR}/foundry-${tag}"
   container_name="foundryvtt-$tag"
+  
+  # Get container status
   status=$(docker inspect -f '{{.State.Status}}' "$container_name" 2>/dev/null)
   [[ -z "$status" ]] && status="not created"
 
@@ -97,7 +94,7 @@ fi
 
 # No installs case (only for table mode)
 if [[ "$found_any" == false && "$MODE" == "table" ]]; then
-  echo "⚠️ No Foundry installs detected in: $INSTALL_BASE"
+  echo "⚠️ No Foundry installs detected in: $FOUNDRY_INSTALL_DIR"
 fi
 
 [[ "$MODE" == "table" ]] && echo ""

@@ -1,39 +1,47 @@
 #!/bin/bash
 
-# === Bootstrap ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
-PLATFORM_UTILS="$UTILS_DIR/platform-utils.sh"
-BUILDX_VERSION="v0.11.2"
+# === Bootstrap Environment ===
+# Find and source load-env.sh (it handles finding repo root)
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           # We're in repo root
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       # We're in subdirectory
+else
+  echo "❌ Cannot find utils/load-env.sh" >&2
+  exit 1
+fi
 
-for helper in "$ENV_LOADER" "$FILE_UTILS" "$PLATFORM_UTILS"; do
+# Load unified configuration (sets all paths and validates environment)
+source "$UTILS_DIR/foundry-config.sh"
+
+# Load additional helpers
+helpers=(
+  "$UTILS_DIR/file-utils.sh"
+  "$UTILS_DIR/platform-utils.sh"
+)
+
+for helper in "${helpers[@]}"; do
   [[ -f "$helper" ]] && source "$helper" || {
     echo "❌ Missing required helper: $helper"
     exit 1
   }
 done
 
+# === Configuration ===
 MAX_RETRIES=3
 FORCE_DOWNLOAD=0
 USE_BUILDKIT=0
+BUILDX_VERSION="v0.11.2"
 
-# === Define Paths ===
-TAG_SUFFIX=${FOUNDRY_TAG:+-$FOUNDRY_TAG}
-INSTALL_DIR="${FOUNDRY_INSTALL_DIR%/}/foundry$TAG_SUFFIX"
-DATA_DIR="${FOUNDRY_DATA_DIR%/}/foundry$TAG_SUFFIX"
-CONTAINER_NAME="foundryvtt$TAG_SUFFIX"
-FOUNDRY_PORT="${FOUNDRY_PORT:-30000}"
-
-# === Define UID/GID for Docker user mapping ===
+# Define UID/GID for Docker user mapping
 FOUNDRY_UID=$(id -u)
 FOUNDRY_GID=$(id -g)
 
+# === Display Configuration ===
 echo ""
-echo "📁 App Install Dir:     $INSTALL_DIR"
-echo "📂 Data Directory:      $DATA_DIR"
-echo "🐳 Docker Container:    $CONTAINER_NAME"
+echo "📁 App Install Dir:     $FOUNDRY_INSTALL_PATH"
+echo "📂 Data Directory:      $FOUNDRY_DATA_PATH"
+echo "🐳 Docker Container:    $FOUNDRY_CONTAINER_NAME"
 echo "🌐 Port:                $FOUNDRY_PORT"
 echo "👤 UID:GID:             $FOUNDRY_UID:$FOUNDRY_GID"
 echo ""
@@ -41,37 +49,37 @@ echo ""
 read -p "Continue with these settings? (y/n): " CONFIRM
 [[ ! "$CONFIRM" =~ ^[Yy]$ ]] && echo "⛔ Aborting." && exit 1
 
-# === Existing Container? ===
-if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
-  echo "⚠️ Docker container '$CONTAINER_NAME' already exists."
+# === Check for Existing Container ===
+if docker ps -a --format '{{.Names}}' | grep -qx "$FOUNDRY_CONTAINER_NAME"; then
+  echo "⚠️ Docker container '$FOUNDRY_CONTAINER_NAME' already exists."
   read -p "Stop and remove it? (y/n): " REMOVE
   [[ "$REMOVE" =~ ^[Yy]$ ]] || exit 1
-  docker stop "$CONTAINER_NAME"
-  docker rm "$CONTAINER_NAME"
+  docker stop "$FOUNDRY_CONTAINER_NAME"
+  docker rm "$FOUNDRY_CONTAINER_NAME"
 fi
 
-# === Existing Install Directory ===
-if [[ -d "$INSTALL_DIR" && "$(ls -A "$INSTALL_DIR")" ]]; then
-  echo "⚠️ Directory $INSTALL_DIR is not empty."
-  confirm_overwrite "$INSTALL_DIR" || exit 1
-  sudo rm -rf "$INSTALL_DIR"
+# === Check Existing Install Directory ===
+if [[ -d "$FOUNDRY_INSTALL_PATH" && "$(ls -A "$FOUNDRY_INSTALL_PATH")" ]]; then
+  echo "⚠️ Directory $FOUNDRY_INSTALL_PATH is not empty."
+  confirm_overwrite "$FOUNDRY_INSTALL_PATH" || exit 1
+  sudo rm -rf "$FOUNDRY_INSTALL_PATH"
 fi
 
-# === Backup Data Dir If Non-Empty ===
-if [[ -d "$DATA_DIR" && "$(ls -A "$DATA_DIR")" ]]; then
+# === Backup Data Directory If Needed ===
+if [[ -d "$FOUNDRY_DATA_PATH" && "$(ls -A "$FOUNDRY_DATA_PATH")" ]]; then
   read -p "Backup existing data directory before continuing? (y/n): " BACKUP
-  [[ "$BACKUP" =~ ^[Yy]$ ]] && backup_data_folder "$DATA_DIR" "$(dirname "$DATA_DIR")"
+  [[ "$BACKUP" =~ ^[Yy]$ ]] && backup_data_folder "$FOUNDRY_DATA_PATH" "$(dirname "$FOUNDRY_DATA_PATH")"
 fi
 
-# === Ensure Directories + Disk ===
-safe_mkdir "$(dirname "$DATA_DIR")" || exit 1
-check_disk_space "$(dirname "$DATA_DIR")" 500 || {
+# === Ensure Directories and Check Disk Space ===
+safe_mkdir "$(dirname "$FOUNDRY_DATA_PATH")" || exit 1
+check_disk_space "$(dirname "$FOUNDRY_DATA_PATH")" 500 || {
   echo "❌ Not enough disk space for installation. Aborting."
   exit 1
 }
-safe_mkdir "$INSTALL_DIR" || exit 1
-safe_mkdir "$DATA_DIR" || exit 1
-sudo chown -R "$USER:$USER" "$INSTALL_DIR" "$DATA_DIR"
+safe_mkdir "$FOUNDRY_INSTALL_PATH" || exit 1
+safe_mkdir "$FOUNDRY_DATA_PATH" || exit 1
+sudo chown -R "$USER:$USER" "$FOUNDRY_INSTALL_PATH" "$FOUNDRY_DATA_PATH"
 
 # === Install Docker & Compose ===
 if ! command -v docker > /dev/null; then
@@ -96,7 +104,7 @@ if ! groups "$USER" | grep -qw docker; then
   fi
 fi
 
-# === Ensure unzip ===
+# === Ensure unzip is installed ===
 if ! command -v unzip > /dev/null; then
   echo "📦 Installing unzip..."
   sudo apt install -y unzip || {
@@ -106,7 +114,7 @@ if ! command -v unzip > /dev/null; then
 fi
 
 # === Download Foundry ===
-cd "$INSTALL_DIR"
+cd "$FOUNDRY_INSTALL_PATH"
 [[ ! -f "foundryvtt.zip" ]] && FORCE_DOWNLOAD=1
 
 if [[ "$FORCE_DOWNLOAD" -eq 1 ]]; then
@@ -128,8 +136,8 @@ fi
 
 # === Extract Foundry ===
 echo "📂 Extracting Foundry..."
-unzip -q foundryvtt.zip -d "$INSTALL_DIR" && rm foundryvtt.zip
-[[ ! -f "$INSTALL_DIR/resources/app/main.mjs" ]] && {
+unzip -q foundryvtt.zip -d "$FOUNDRY_INSTALL_PATH" && rm foundryvtt.zip
+[[ ! -f "$FOUNDRY_INSTALL_PATH/resources/app/main.mjs" ]] && {
   echo "❌ Extraction failed: expected file missing."
   exit 1
 }
@@ -152,9 +160,9 @@ else
   USE_BUILDKIT=1
 fi
 
-# === Dockerfile + Compose ===
+# === Create Dockerfile and Docker Compose ===
 echo "🐳 Creating Dockerfile and docker-compose.yml..."
-cat <<EOF > "$INSTALL_DIR/Dockerfile"
+cat <<EOF > "$FOUNDRY_INSTALL_PATH/Dockerfile"
 FROM node:20-slim
 WORKDIR /foundry
 COPY . /foundry
@@ -162,22 +170,22 @@ EXPOSE $FOUNDRY_PORT
 CMD ["node", "resources/app/main.mjs", "--dataPath=/data"]
 EOF
 
-cat <<EOF > "$INSTALL_DIR/docker-compose.yml"
+cat <<EOF > "$FOUNDRY_INSTALL_PATH/docker-compose.yml"
 version: '3.8'
 services:
   foundry:
     build: .
-    container_name: $CONTAINER_NAME
+    container_name: $FOUNDRY_CONTAINER_NAME
     user: "${FOUNDRY_UID}:${FOUNDRY_GID}"
     ports:
       - "127.0.0.1:$FOUNDRY_PORT:$FOUNDRY_PORT"
     volumes:
-      - $DATA_DIR:/data
+      - $FOUNDRY_DATA_PATH:/data
     restart: unless-stopped
 EOF
 
-# === Launch ===
-cd "$INSTALL_DIR"
+# === Launch Container ===
+cd "$FOUNDRY_INSTALL_PATH"
 echo "🚀 Starting Foundry container..."
 if [[ "$USE_BUILDKIT" -eq 1 ]]; then
   DOCKER_BUILDKIT=1 docker-compose up -d --build
@@ -185,11 +193,11 @@ else
   docker-compose up -d --build
 fi
 
-[[ $? -ne 0 ]] && {
+if [[ $? -ne 0 ]]; then
   echo "❌ Docker container failed to launch."
   docker-compose logs
   exit 1
-}
+fi
 
 echo ""
 echo "✅ Foundry is running!"

@@ -1,112 +1,208 @@
 #!/bin/bash
-# === restic-setup.sh ===
-# Installs Restic and configures a local encrypted repository
+# tools/restic-setup.sh - Install and configure restic for encrypted backups
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-source "$UTILS_DIR/load-env.sh"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
-RESTIC_UTILS="$UTILS_DIR/restic-utils.sh"
+# Find and source load-env.sh
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       
+else
+  echo "❌ Cannot find utils/load-env.sh" >&2
+  exit 1
+fi
 
-for helper in "$ENV_LOADER" "$FILE_UTILS" "$RESTIC_UTILS"; do
+# Load unified configuration and helpers
+helpers=(
+  "$UTILS_DIR/foundry-config.sh"
+  "$UTILS_DIR/file-utils.sh"
+  "$UTILS_DIR/restic-utils.sh"
+)
+
+for helper in "${helpers[@]}"; do
   [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing helper: $helper"
+    echo "❌ Missing required helper: $helper"
     exit 1
   }
 done
 
-# === Verify required ENV values ===
-if [[ -z "$RESTIC_REPO" ]]; then
-  echo "❌ RESTIC_REPO is not set. Check your .env.local or .env.defaults."
-  exit 1
-fi
-
-if [[ -z "$RESTIC_PASSWORD_FILE" ]]; then
-  echo "❌ RESTIC_PASSWORD_FILE is not set. Check your .env.local or .env.defaults."
-  exit 1
-fi
-
-if [[ -z "$BACKUP_LOG_DIR" ]]; then
-  echo "❌ BACKUP_LOG_DIR is not set. Check your .env.local or .env.defaults."
-  exit 1
-fi
-
-# === Prepare log ===
-safe_mkdir "$BACKUP_LOG_DIR" || exit 1
-LOG_FILE="$BACKUP_LOG_DIR/restic-setup-$(date +%F).log"
+# === Setup logging ===
+safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
+LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/restic-setup-$(date +%F).log"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') | $*" | tee -a "$LOG_FILE"
 }
 
-# === Ensure restic is installed ===
+echo "🔐 Restic Setup - Encrypted Backup Configuration"
+echo "================================================"
+echo ""
+
+log "🚀 Starting restic setup process"
+log "📂 Repository will be: $RESTIC_REPO"
+log "🔐 Password file will be: $RESTIC_PASSWORD_FILE"
+log "📝 Setup log: $LOG_FILE"
+
+# === Check if already configured ===
+if [[ -f "$RESTIC_PASSWORD_FILE" && -d "$RESTIC_REPO" ]]; then
+  echo "⚠️  Restic appears to already be configured:"
+  echo "   Password file: $RESTIC_PASSWORD_FILE"
+  echo "   Repository:    $RESTIC_REPO"
+  echo ""
+  read -p "   Continue anyway? This will overwrite existing setup. (y/n): " CONTINUE
+  if [[ ! "$CONTINUE" =~ ^[Yy]$ ]]; then
+    echo "⛔ Setup cancelled."
+    exit 0
+  fi
+fi
+
+# === Install restic if needed ===
 if ! command -v restic &>/dev/null; then
-  log "📦 Installing Restic..."
+  log "📦 Installing restic..."
+  echo "📦 Installing restic..."
   sudo apt update && sudo apt install -y restic || {
-    log "❌ Failed to install restic. Aborting."
+    log "❌ Failed to install restic"
+    echo "❌ Failed to install restic. Aborting."
     exit 1
   }
+  log "✅ Restic installed successfully"
+  echo "✅ Restic installed successfully"
 else
-  log "✅ Restic is already installed."
+  log "✅ Restic is already installed: $(restic version)"
+  echo "✅ Restic is already installed: $(restic version)"
 fi
 
-# === Check if password file already exists ===
+# === Backup existing password file if it exists ===
 if [[ -s "$RESTIC_PASSWORD_FILE" ]]; then
-  log "⚠️ Password file already exists: $RESTIC_PASSWORD_FILE"
-  read -p "Do you want to overwrite it? (y/n): " OVERWRITE
-  if [[ ! "$OVERWRITE" =~ ^[Yy]$ ]]; then
-    log "❌ Aborting to avoid overwriting existing password."
-    exit 1
-  fi
   TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
-  BACKUP="$RESTIC_PASSWORD_FILE.bak.$TIMESTAMP"
-  cp "$RESTIC_PASSWORD_FILE" "$BACKUP"
-  log "🧾 Original password file backed up as: $BACKUP"
+  BACKUP_FILE="$RESTIC_PASSWORD_FILE.backup.$TIMESTAMP"
+  cp "$RESTIC_PASSWORD_FILE" "$BACKUP_FILE"
+  log "🧾 Existing password file backed up to: $BACKUP_FILE"
+  echo "🧾 Existing password file backed up to: $BACKUP_FILE"
 fi
 
-# === Prompt for new password ===
-echo "🔐 Set a password for the Restic repository."
-read -s -p "Enter password: " PW1; echo
-read -s -p "Confirm password: " PW2; echo
+# === Set password ===
+echo ""
+echo "🔐 Setting up repository password..."
+echo "   This password encrypts your backups. Keep it safe!"
+echo "   If you lose it, you cannot recover your backups."
+echo ""
 
-if [[ "$PW1" != "$PW2" ]]; then
-  log "❌ Passwords do not match. Aborting."
-  exit 1
-fi
+while true; do
+  read -s -p "Enter password for restic repository: " PASSWORD1
+  echo ""
+  read -s -p "Confirm password: " PASSWORD2
+  echo ""
+  
+  if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
+    if [[ ${#PASSWORD1} -lt 8 ]]; then
+      echo "❌ Password too short. Please use at least 8 characters."
+      continue
+    fi
+    break
+  else
+    echo "❌ Passwords do not match. Please try again."
+  fi
+done
 
-echo "$PW1" > "$RESTIC_PASSWORD_FILE"
+# === Save password file ===
+echo "$PASSWORD1" > "$RESTIC_PASSWORD_FILE"
 chmod 600 "$RESTIC_PASSWORD_FILE"
 log "✅ Password saved to: $RESTIC_PASSWORD_FILE"
+echo "✅ Password saved securely"
 
-# === Ensure repo dir exists ===
-safe_mkdir "$RESTIC_REPO" || exit 1
-
-# === Check disk space ===
-check_disk_space "$RESTIC_REPO" 500 || {
-  log "❌ Not enough free space in $RESTIC_REPO. Aborting."
+# === Create and check repository directory ===
+safe_mkdir "$RESTIC_REPO" || {
+  log "❌ Failed to create repository directory: $RESTIC_REPO"
+  echo "❌ Failed to create repository directory"
   exit 1
 }
 
-# === Initialize repo if needed ===
-init_restic_repo
+# === Check disk space ===
+echo ""
+echo "💾 Checking disk space..."
+check_disk_space "$RESTIC_REPO" 500 || {
+  log "❌ Insufficient disk space for repository"
+  echo "❌ Not enough free space for repository"
+  echo "   Need at least 500MB, preferably several GB for backups"
+  exit 1
+}
 
-# === Setup retention policy ===
-KEEP_DAILY="${RESTIC_KEEP_DAILY:-7}"
-KEEP_WEEKLY="${RESTIC_KEEP_WEEKLY:-4}"
-KEEP_MONTHLY="${RESTIC_KEEP_MONTHLY:-6}"
+# === Initialize repository ===
+echo ""
+echo "📦 Initializing restic repository..."
+log "📦 Initializing repository at: $RESTIC_REPO"
 
-log "🛠️ Applying retention policy..."
-restic \
-  --repo "$RESTIC_REPO" \
-  --password-file "$RESTIC_PASSWORD_FILE" \
-  forget \
-  --keep-daily "$KEEP_DAILY" \
-  --keep-weekly "$KEEP_WEEKLY" \
-  --keep-monthly "$KEEP_MONTHLY" \
-  --prune
+if init_restic_repo; then
+  log "✅ Repository initialized successfully"
+  echo "✅ Repository initialized successfully"
+else
+  log "❌ Failed to initialize repository"
+  echo "❌ Failed to initialize repository"
+  exit 1
+fi
 
-log ""
-log "🎉 Restic setup complete."
-log "🗂️  Repo: $RESTIC_REPO"
-log "🔐 Password File: $RESTIC_PASSWORD_FILE"
+# === Test repository ===
+echo ""
+echo "🧪 Testing repository access..."
+if restic_repo_check; then
+  echo "✅ Repository test passed"
+else
+  echo "❌ Repository test failed"
+  exit 1
+fi
+
+# === Show configuration ===
+echo ""
+echo "📋 Restic Configuration Summary:"
+echo "   Repository:     $RESTIC_REPO"
+echo "   Password File:  $RESTIC_PASSWORD_FILE"
+echo "   Retention:"
+echo "     Daily:        ${RESTIC_KEEP_DAILY} backups"
+echo "     Weekly:       ${RESTIC_KEEP_WEEKLY} backups" 
+echo "     Monthly:      ${RESTIC_KEEP_MONTHLY} backups"
+echo ""
+
+# === Test backup (optional) ===
+read -p "🧪 Run a test backup now? (y/n): " TEST_BACKUP
+if [[ "$TEST_BACKUP" =~ ^[Yy]$ ]]; then
+  echo ""
+  echo "🔄 Running test backup..."
+  
+  # Create a small test file
+  TEST_DIR="/tmp/restic-test-$$"
+  mkdir -p "$TEST_DIR"
+  echo "Test backup file created $(date)" > "$TEST_DIR/test.txt"
+  
+  if run_restic_backup "$TEST_DIR"; then
+    echo "✅ Test backup completed successfully"
+    log "✅ Test backup completed successfully"
+    
+    # Clean up test file
+    rm -rf "$TEST_DIR"
+    
+    # Show snapshots
+    echo ""
+    echo "📋 Repository snapshots:"
+    restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" snapshots
+  else
+    echo "❌ Test backup failed"
+    log "❌ Test backup failed"
+    rm -rf "$TEST_DIR"
+  fi
+fi
+
+# === Setup complete ===
+echo ""
+echo "🎉 Restic setup completed successfully!"
+echo ""
+echo "📝 Next steps:"
+echo "   1. Test backup: bash tools/backup-local-restic.sh"
+echo "   2. Set up cron job for automated backups"
+echo "   3. Test restore: bash tools/backup-local-restic-restore.sh --list"
+echo ""
+echo "⚠️  IMPORTANT: Keep your password file safe!"
+echo "   Location: $RESTIC_PASSWORD_FILE"
+echo "   Without it, you cannot access your backups!"
+
+log "🎉 Restic setup completed successfully"
+log "============================================="

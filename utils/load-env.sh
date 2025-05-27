@@ -1,11 +1,34 @@
 #!/bin/bash
+# utils/load-env.sh - Location-aware environment loader
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Find the repo root (where .env.defaults lives)
+find_repo_root() {
+  local current="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"  # Note: [1] not [0]
+  
+  while [[ "$current" != "/" ]]; do
+    if [[ -f "$current/.env.defaults" ]]; then
+      echo "$current"
+      return 0
+    fi
+    current="$(dirname "$current")"
+  done
+  
+  # Fallback
+  echo "$current"
+}
 
-if [[ -f "$SCRIPT_DIR/.env.defaults" ]]; then
-  source "$SCRIPT_DIR/.env.defaults"
+REPO_ROOT="$(find_repo_root)"
+
+# Load environment files
+if [[ -f "$REPO_ROOT/.env.defaults" ]]; then
+  source "$REPO_ROOT/.env.defaults"
 fi
 
-if [[ -f "$SCRIPT_DIR/.env.local" ]]; then
-  source "$SCRIPT_DIR/.env.local"
+if [[ -f "$REPO_ROOT/.env.local" ]]; then
+  source "$REPO_ROOT/.env.local"
 fi
+
+# Export paths for all scripts to use
+export REPO_ROOT
+export UTILS_DIR="$REPO_ROOT/utils"
+export TOOLS_DIR="$REPO_ROOT/tools"

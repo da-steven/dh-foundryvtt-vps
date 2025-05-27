@@ -1,60 +1,73 @@
 #!/bin/bash
+# tools/backup-local-rsync.sh - Local incremental backups using rsync
 
-# === Config ===
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-UTILS_DIR="$SCRIPT_DIR/utils"
-source "$UTILS_DIR/load-env.sh"
-ENV_LOADER="$UTILS_DIR/load-env.sh"
-FILE_UTILS="$UTILS_DIR/file-utils.sh"
+# Find and source load-env.sh
+if [[ -f "utils/load-env.sh" ]]; then
+  source "utils/load-env.sh"           
+elif [[ -f "../utils/load-env.sh" ]]; then
+  source "../utils/load-env.sh"       
+else
+  echo "❌ Cannot find utils/load-env.sh" >&2
+  exit 1
+fi
 
-for helper in "$ENV_LOADER" "$FILE_UTILS"; do
+# Load unified configuration and helpers
+helpers=(
+  "$UTILS_DIR/foundry-config.sh"
+  "$UTILS_DIR/file-utils.sh"
+)
+
+for helper in "${helpers[@]}"; do
   [[ -f "$helper" ]] && source "$helper" || {
     echo "❌ Missing required helper: $helper"
     exit 1
   }
 done
 
-BACKUP_SOURCE="${FOUNDRY_DATA_DIR%/}/foundry-${FOUNDRY_TAG}/Data"
-BACKUP_BASE="${FOUNDRY_BACKUP_DIR%/}/rsync-backups"
-EXCLUDE_FILE="$SCRIPT_DIR/.rsync-exclude.txt"
-LOG_FILE="${BACKUP_LOG_DIR%/}/rsync-backup-$(date +%F).log"
+# === Configuration ===
+EXCLUDE_FILE="$REPO_ROOT/.rsync-exclude.txt"
+LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/rsync-backup-$(date +%F).log"
 
 TODAY=$(date +%F)
 YESTERDAY=$(date -d "yesterday" +%F)
-TODAY_DIR="$BACKUP_BASE/$TODAY"
-YESTERDAY_DIR="$BACKUP_BASE/$YESTERDAY"
+TODAY_DIR="$FOUNDRY_RSYNC_BACKUP_PATH/$TODAY"
+YESTERDAY_DIR="$FOUNDRY_RSYNC_BACKUP_PATH/$YESTERDAY"
 
-safe_mkdir "$BACKUP_BASE" || exit 1
-safe_mkdir "$BACKUP_LOG_DIR" || exit 1
+# === Setup directories and logging ===
+safe_mkdir "$FOUNDRY_RSYNC_BACKUP_PATH" || exit 1
+safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
 
 log() {
   echo "$(date '+%F %T') | $*" | tee -a "$LOG_FILE"
 }
 
 log "📦 Starting rsync local backup"
-log "📁 Source: $BACKUP_SOURCE"
+log "📁 Source: $FOUNDRY_BACKUP_SOURCE"
 log "📂 Target: $TODAY_DIR"
 log "🧾 Exclude file: $EXCLUDE_FILE"
 log "📝 Log: $LOG_FILE"
 log "-------------------------------------------"
 
+# === Pre-flight checks ===
 if ! command -v rsync &>/dev/null; then
   log "❌ rsync not found. Aborting."
   exit 1
 fi
 
-if [[ ! -d "$BACKUP_SOURCE" ]]; then
-  log "❌ Backup source not found: $BACKUP_SOURCE"
+if [[ ! -d "$FOUNDRY_BACKUP_SOURCE" ]]; then
+  log "❌ Backup source not found: $FOUNDRY_BACKUP_SOURCE"
   exit 1
 fi
 
-check_disk_space "$BACKUP_BASE" 1000 || {
+check_disk_space "$FOUNDRY_RSYNC_BACKUP_PATH" 1000 || {
   log "❌ Not enough disk space. Aborting."
   exit 1
 }
 
+# === Create today's backup directory ===
 safe_mkdir "$TODAY_DIR" || exit 1
 
+# === Determine if we can use hard links ===
 if [[ -d "$YESTERDAY_DIR" ]]; then
   LINK_DEST="--link-dest=$YESTERDAY_DIR"
   log "🔗 Using hard links from: $YESTERDAY_DIR"
@@ -63,11 +76,17 @@ else
   log "ℹ️ No previous backup found. Full copy will be made."
 fi
 
-rsync -a \
-  --delete \
-  --exclude-from="$EXCLUDE_FILE" \
-  $LINK_DEST \
-  "$BACKUP_SOURCE/" "$TODAY_DIR/" >> "$LOG_FILE" 2>&1
+# === Run the backup ===
+RSYNC_OPTS="-a --delete"
+if [[ -f "$EXCLUDE_FILE" ]]; then
+  RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$EXCLUDE_FILE"
+  log "📋 Using exclude file: $EXCLUDE_FILE"
+else
+  log "⚠️ No exclude file found at: $EXCLUDE_FILE"
+fi
+
+rsync $RSYNC_OPTS $LINK_DEST \
+  "$FOUNDRY_BACKUP_SOURCE/" "$TODAY_DIR/" >> "$LOG_FILE" 2>&1
 
 if [[ $? -eq 0 ]]; then
   log "✅ Backup completed successfully."
@@ -76,13 +95,15 @@ else
   exit 1
 fi
 
+# === Cleanup old backups ===
 log "🧹 Rotating backups. Keeping last ${BACKUP_RETAIN_COUNT_LOCAL}..."
 
-cd "$BACKUP_BASE" || exit 1
+cd "$FOUNDRY_RSYNC_BACKUP_PATH" || exit 1
 ls -1d */ | sort | head -n -"${BACKUP_RETAIN_COUNT_LOCAL}" | while read -r OLD; do
-  log "🗑️  Removing old backup: $OLD"
+  log "🗑️ Removing old backup: $OLD"
   rm -rf "$OLD"
 done
 
-log "✅ Done. Local incremental backup saved to $TODAY_DIR"
+log "✅ Local incremental backup saved to: $TODAY_DIR"
+log "📊 Backup size: $(du -sh "$TODAY_DIR" | cut -f1)"
 log "==========================================="
