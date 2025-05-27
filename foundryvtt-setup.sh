@@ -11,21 +11,12 @@ else
   exit 1
 fi
 
-# Load unified configuration (sets all paths and validates environment)
-source "$UTILS_DIR/foundry-config.sh"
-
-# Load additional helpers
-helpers=(
-  "$UTILS_DIR/file-utils.sh"
-  "$UTILS_DIR/platform-utils.sh"
-)
-
-for helper in "${helpers[@]}"; do
-  [[ -f "$helper" ]] && source "$helper" || {
-    echo "❌ Missing required helper: $helper"
-    exit 1
-  }
-done
+# Load unified configuration and helpers
+load_helpers \
+  "foundry-config.sh" \
+  "file-utils.sh" \
+  "platform-utils.sh" \
+  "tool-utils.sh"
 
 # === Configuration ===
 MAX_RETRIES=3
@@ -105,12 +96,9 @@ if ! groups "$USER" | grep -qw docker; then
 fi
 
 # === Ensure unzip is installed ===
-if ! command -v unzip > /dev/null; then
-  echo "📦 Installing unzip..."
-  sudo apt install -y unzip || {
-    echo "❌ Failed to install unzip. Aborting."
-    exit 1
-  }
+if ! check_tool unzip && ! install_tool unzip; then
+  echo "❌ Failed to install unzip. Aborting."
+  exit 1
 fi
 
 # === Download Foundry ===

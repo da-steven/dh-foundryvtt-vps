@@ -76,8 +76,8 @@ fi
 
 # Check and install backup tools
 echo ""
-echo "🛠️ Checking backup tools..."
-for tool in rsync restic rclone; do
+echo "🛠️ Checking backup tools and unzip..."
+for tool in rsync restic rclone unzip; do
   check_tool "$tool" || install_tool "$tool"
 done
 
