@@ -1,5 +1,5 @@
 #!/bin/bash
-# tools/restic-setup.sh - Install and configure restic for encrypted backups
+# tools/setup-restic.sh - Install and configure restic for encrypted backups
 
 # Find and source load-env.sh
 if [[ -f "utils/load-env.sh" ]]; then
