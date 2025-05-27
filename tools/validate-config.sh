@@ -13,7 +13,8 @@ fi
 
 # Load unified configuration helper
 load_helpers \
-  "foundry-config.sh" 
+  "foundry-config.sh" \
+  "tool-utils.sh"
 
 echo "🔍 Validating Foundry VTT Configuration"
 echo "========================================"
