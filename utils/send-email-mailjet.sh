@@ -1,6 +1,6 @@
 #!/bin/bash
-# utils/send-mailjet.sh - Send email via Mailjet API
-# Usage: ./send-mailjet.sh "Subject Here" "Message body here"
+# utils/send-email-mailjet.sh - Send email via Mailjet API
+# Usage: ./send-email-mailjet.sh "Subject Here" "Message body here"
 
 # Load environment
 source "$(dirname "${BASH_SOURCE[0]}")/load-env.sh"

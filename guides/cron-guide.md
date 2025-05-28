@@ -15,6 +15,55 @@
 
 ---
 
+## UPDATED CRON
+
+### STEP 1: Edit Crontab:
+
+```bash
+crontab -e
+```
+
+### STEP 2: Paste cron jobs in crontab:
+```bash
+# === Foundry VTT Automated Backups ===
+PATH=/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin
+
+# Create $HOME/logs and delete any logs older than 30 days
+0 2 * * * mkdir -p "$HOME/logs" && find "$HOME/logs" -type f -mtime +30 -delete
+
+# Local backup - 3:00 AM daily
+0 3 * * * bash /home/ubuntu/dh-foundryvtt-vps/tools/backup-local-restic.sh
+
+# Local prune - 3:30 AM weekly (Saturday)
+30 3 * * 6 bash /home/ubuntu/dh-foundryvtt-vps/tools/backup-local-restic-prune.sh
+
+# B2 remote backup - 4:00 AM daily
+# 0 4 * * * bash /home/ubuntu/dh-foundryvtt-vps/tools/backup-remote-b2-rclone.sh
+
+# B2 remote backup - 4:00 AM weekly (Sunday)
+0 4 * * 7 bash /home/ubuntu/dh-foundryvtt-vps/tools/backup-remote-b2-rclone.sh
+```
+
+# CORRECTED cron syntax (my earlier examples had errors!)
+
+# Wrong (what I originally wrote):
+0 2 * ** cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-rsync.sh
+0 3 * *0 cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-restic.sh
+0 4 1 * *cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-restic-prune.sh
+0 5 * *6 cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-remote-b2-rclone.sh
+
+# Correct (fixed):
+0 2 * * * cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-rsync.sh >> /var/log/foundry-cron.log 2>&1
+0 3 * * 0 cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-restic.sh >> /var/log/foundry-cron.log 2>&1
+0 4 1 * * cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-local-restic-prune.sh >> /var/log/foundry-cron.log 2>&1
+0 5 * * 6 cd /home/ubuntu/dh-foundryvtt-vps && ./tools/backup-remote-b2-rclone.sh >> /var/log/foundry-cron.log 2>&1
+
+# Cron format: minute hour day-of-month month day-of-week
+#              0-59   0-23  1-31        1-12  0-7 (0 and 7 are Sunday)
+
+
+
+
 ## 📅 **Recommended Cron Schedule**
 
 ### **Option 1: Conservative (Low Resource Usage)**
