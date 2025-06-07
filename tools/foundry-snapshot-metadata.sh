@@ -18,8 +18,9 @@ load_helpers "file-utils.sh" "tool-utils.sh"
 # === Directories ===
 DATESTAMP=$(date +%F)
 SNAPSHOT_DIR="${FOUNDRY_DATA_DIR}/Backups/snapshots"
-MODULES_DIR="${FOUNDRY_DATA_DIR}/Data/modules"
-SYSTEMS_DIR="${FOUNDRY_DATA_DIR}/Data/systems"
+FOUNDRY_DATA_PATH="${FOUNDRY_DATA_DIR%/}/foundry-${FOUNDRY_TAG}"
+MODULES_DIR="${FOUNDRY_DATA_PATH}/Data/modules"
+SYSTEMS_DIR="${FOUNDRY_DATA_PATH}/Data/systems"
 
 safe_mkdir "$SNAPSHOT_DIR"
 
