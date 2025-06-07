@@ -21,6 +21,7 @@ echo ""
 echo "⚠️  This script will configure a basic firewall using UFW."
 echo "    Incoming connections will be blocked EXCEPT for SSH."
 echo "    These defaults are safe for Foundry behind a Cloudflare Tunnel."
+echo "    DO NOT USE UFW ON ORACLE CLOUD VM INSTANCES!"
 echo ""
 read -p "Continue with firewall setup? (y/n): " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then

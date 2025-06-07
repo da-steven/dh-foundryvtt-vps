@@ -152,6 +152,14 @@ fi
 echo "🐳 Creating Dockerfile and docker-compose.yml..."
 cat <<EOF > "$FOUNDRY_INSTALL_PATH/Dockerfile"
 FROM node:20-slim
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      curl \
+      wget \
+      iputils-ping \
+      nano \
+      vim \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /foundry
 COPY . /foundry
 EXPOSE $FOUNDRY_PORT

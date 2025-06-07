@@ -8,6 +8,8 @@ Here’s a breakdown of your options and why you might consider them:
 
 ### 1. **Firewall (UFW or iptables/nftables)**
 
+**DO NOT USE UFW ON ORACLE CLOUD!!!!!**
+
 Purpose: Control which ports/services are accessible externally.
 
 **UFW (Uncomplicated Firewall)** is recommended for ease of use:
@@ -85,6 +87,124 @@ Make sure your Foundry container is **only listening on `127.0.0.1`**, not `0.0.
 
 ---
 
+## Oracle Troubleshooting
+
+The error you're seeing is:
+
+> ❌ `iptables: No chain/target/match by that name`
+> 🧨 `driver failed programming external connectivity on endpoint foundryvtt-v12`
+
+This is **not** a problem with your Dockerfile or script logic — it's an issue with **Docker networking and iptables integration on Oracle Cloud**, often triggered when:
+
+* Oracle’s default `iptables` rules are broken or incomplete
+* `ufw` has left lingering changes (even after being removed)
+* Docker’s own `DOCKER` iptables chains are missing or corrupted
+
+---
+
+## ✅ Fix Steps
+
+Here’s a tested process to reset Docker networking on your Oracle Cloud VM (Ubuntu):
+
+---
+
+### 1. 🧼 Clean Up Docker Networking
+
+```bash
+sudo systemctl stop docker
+sudo iptables -F
+sudo iptables -t nat -F
+sudo iptables -t mangle -F
+sudo iptables -X
+```
+
+Then remove the leftover Docker networks:
+
+```bash
+sudo rm -rf /var/lib/docker/network
+```
+
+---
+
+### 2. 🔄 Restart Docker Cleanly
+
+```bash
+sudo systemctl start docker
+```
+
+Check for Docker’s iptables chains:
+
+```bash
+sudo iptables -L -n -v
+sudo iptables -t nat -L -n -v
+```
+
+You should now see `DOCKER` chains under `-t nat` and `-t filter`.
+
+---
+
+### 3. 🔁 Rebuild and Start Your Container
+
+```bash
+cd "$FOUNDRY_INSTALL_PATH"
+docker-compose down
+docker-compose up -d --build
+```
+
+If this still fails with the same error, try rebooting:
+
+```bash
+sudo reboot
+```
+
+Then retry the above `docker-compose` command.
+
+---
+
+## 🛡 Why This Happens on Oracle
+
+Oracle’s "secure by default" image config **heavily modifies `iptables`**, and Docker **expects full control** over `iptables`. Even uninstalling `ufw` might leave the `DOCKER` chain or `FORWARD` policy broken.
+
+Your earlier firewall rule:
+
+```bash
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+```
+
+…combined with missing `DOCKER` chains, breaks internal container connectivity.
+
+---
+
+## ✅ Optional: Permanently Fix Forwarding
+
+If needed, allow container bridge traffic:
+
+```bash
+sudo iptables -P FORWARD ACCEPT
+```
+
+Add this line to a systemd-based iptables restore file if you use one:
+
+```bash
+# /etc/iptables/rules.v4
+*filter
+:FORWARD ACCEPT [0:0]
+COMMIT
+```
+
+---
+
+## ✅ Summary
+
+| Step | Fix                                           |
+| ---- | --------------------------------------------- |
+| 1️⃣  | Flush and reset iptables                      |
+| 2️⃣  | Remove `/var/lib/docker/network`              |
+| 3️⃣  | Restart Docker and check chains               |
+| 4️⃣  | Rebuild the container                         |
+| 5️⃣  | Ensure `FORWARD` is set to `ACCEPT` if needed |
+
+Let me know once you've done these, and I’ll help verify your container networking or tweak further if needed.
 
 
 
