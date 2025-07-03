@@ -23,7 +23,7 @@ send_email() {
   : "${MAILJET_FROM:?MAILJET_FROM not set}"
   : "${MAILJET_TO:?MAILJET_TO not set}"
 
-  curl -s --user "$MAILJET_API_KEY:$MAILJET_API_SECRET" \
+  RESPONSE=$(curl -s --user "$MAILJET_API_KEY:$MAILJET_API_SECRET" \
     https://api.mailjet.com/v3.1/send \
     -H "Content-Type: application/json" \
     -d '{
@@ -37,11 +37,14 @@ send_email() {
               "Email": "'"$MAILJET_TO"'"
             }
           ],
-          "Subject": "'"$subject"'",
-          "TextPart": "'"$body"'"
+          "Subject": "'"$SUBJECT"'",
+          "TextPart": "'"$BODY"'"
         }
       ]
-    }'
+    }')
+
+  echo "$RESPONSE" | grep -q '"Status":"success"' || echo "⚠️ Mailjet send failed: $RESPONSE"
+
 }
 
 # === Optional CLI fallback ===
