@@ -125,7 +125,7 @@ backup_data_folder() {
 # Returns path to a temp exclude file (or stderr on error)
 get_backup_excludes() {
   local tool="$1"
-  local source_file="$SCRIPT_DIR/../.backup-exclude.txt"
+  local source_file="$REPO_ROOT/.backup-exclude.txt"
   local temp_file="/tmp/.backup-exclude-$tool.txt"
 
   [[ ! -f "$source_file" ]] && {

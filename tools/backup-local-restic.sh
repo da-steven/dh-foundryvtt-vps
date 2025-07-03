@@ -12,7 +12,7 @@ else
 fi
 
 # Load helpers
-load_helpers "file-utils.sh" "restic-utils.sh" "tool-utils.sh"
+load_helpers "file-utils.sh" "restic-utils.sh" "tool-utils.sh" "send-email-mailjet.sh"
 
 LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/restic-backup-$(date +%F).log"
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR"
@@ -44,7 +44,7 @@ restic_repo_check || {
 EXCLUDE_FILE=$(get_backup_excludes restic)
 if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
   log "❌ Failed to generate restic exclude file. Aborting."
-  "$SCRIPT_DIR/send-email-mailjet.sh" \
+  send_email \
     --subject "Restic Backup Failed" \
     --body "Restic backup aborted: no valid exclude file generated at $(date).\nCheck your .backup-exclude.txt for formatting or path issues."
   exit 1
@@ -62,7 +62,7 @@ if [[ $STATUS -eq 0 ]]; then
   log "✅ Restic backup completed successfully."
 else
   log "❌ Restic backup failed with exit code: $STATUS"
-  "$SCRIPT_DIR/send-email-mailjet.sh" \
+  send_email \
     --subject "Restic Backup Failed" \
     --body "Restic backup failed with exit code: $STATUS at $(date). Check log: $LOG_FILE"
   exit $STATUS
