@@ -42,19 +42,28 @@ restic_repo_check || {
 
 # === Exclude File ===
 EXCLUDE_FILE=$(get_backup_excludes restic)
-[[ -z "$EXCLUDE_FILE" ]] && log "⚠️ No exclude file generated. Continuing with full backup."
+if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
+  log "❌ Failed to generate restic exclude file. Aborting."
+  "$SCRIPT_DIR/send-email-mailjet.sh" \
+    --subject "Restic Backup Failed" \
+    --body "Restic backup aborted: no valid exclude file generated at $(date).\nCheck your .backup-exclude.txt for formatting or path issues."
+  exit 1
+fi
 
 # === Run Backup ===
 restic backup "$FOUNDRY_BACKUP_SOURCE" \
   --repo "$RESTIC_REPO_DIR" \
   --password-file "$RESTIC_PASSWORD_FILE" \
-  --verbose \
-  ${EXCLUDE_FILE:+--exclude-file "$EXCLUDE_FILE"}
+  --exclude-file "$EXCLUDE_FILE" \
+  --verbose >> "$LOG_FILE" 2>&1
 
-RESULT=$?
-log_restic_result "$RESULT"
-
-[[ $RESULT -ne 0 ]] && exit $RESULT
-
-log "✅ Backup completed successfully."
-log "============================================="
+STATUS=$?
+if [[ $STATUS -eq 0 ]]; then
+  log "✅ Restic backup completed successfully."
+else
+  log "❌ Restic backup failed with exit code: $STATUS"
+  "$SCRIPT_DIR/send-email-mailjet.sh" \
+    --subject "Restic Backup Failed" \
+    --body "Restic backup failed with exit code: $STATUS at $(date). Check log: $LOG_FILE"
+  exit $STATUS
+fi
