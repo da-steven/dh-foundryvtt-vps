@@ -1,0 +1,16 @@
+# === Shared ===
+logs/
+cache/
+tmp/
+uploads/temp/
+*.bak
+
+# === Cloud-only Excludes ===
+# tag: b2,restic
+Data/modules/
+Data/systems/
+Data/assets/third-party/
+
+# === Rsync-only ===
+# tag: rsync
+Data/assets/third-party/

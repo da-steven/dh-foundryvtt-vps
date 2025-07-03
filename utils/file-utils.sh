@@ -118,3 +118,36 @@ backup_data_folder() {
   cp -a "$source" "$dest"
   ensure_ownership "$dest"
 }
+
+# === filter_backup_excludes_for_tool ===
+# Extracts backup exclusions for a specific tool (e.g. b2, restic, rsync)
+# Usage: filter_backup_excludes_for_tool rsync
+# Returns path to a temp exclude file (or stderr on error)
+filter_backup_excludes_for_tool() {
+  local tool="$1"
+  local source_file="$SCRIPT_DIR/../.backup-exclude.txt"
+  local temp_file="/tmp/.backup-exclude-$tool.txt"
+
+  [[ ! -f "$source_file" ]] && {
+    echo "❌ Exclude file not found: $source_file" >&2
+    return 1
+  }
+
+  # Build filtered list:
+  # - Unconditional (not starting with #)
+  # - Tagged for this tool
+  awk -v tool="$tool" '
+    /^[^#]/ { print; next }
+    match($0, /tag:[^#]+/) {
+      tags = substr($0, RSTART + 4, RLENGTH - 4)
+      n = split(tags, parts, /[, ]+/)
+      for (i in parts) if (parts[i] == tool) {
+        nextline = 1
+        break
+      }
+    }
+    nextline { nextline = 0; next }
+  ' "$source_file" > "$temp_file"
+
+  echo "$temp_file"
+}
