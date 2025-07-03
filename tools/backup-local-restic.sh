@@ -51,6 +51,7 @@ if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
 fi
 
 # === Run Backup ===
+log "🚀 Starting restic backup job..."
 restic backup "$FOUNDRY_BACKUP_SOURCE" \
   --repo "$RESTIC_REPO_DIR" \
   --password-file "$RESTIC_PASSWORD_FILE" \
@@ -60,6 +61,9 @@ restic backup "$FOUNDRY_BACKUP_SOURCE" \
 STATUS=$?
 if [[ $STATUS -eq 0 ]]; then
   log "✅ Restic backup completed successfully."
+  send_email \
+    --subject "Restic Backup Succeeded" \
+    --body "Restic backup completed successfully at $(date).\nRepo: $RESTIC_REPO_DIR\nLog file: $LOG_FILE"
 else
   log "❌ Restic backup failed with exit code: $STATUS"
   send_email \
