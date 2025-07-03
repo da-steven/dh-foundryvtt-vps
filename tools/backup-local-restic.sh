@@ -33,9 +33,12 @@ check_restic_password_file || exit 1
 safe_mkdir "$RESTIC_REPO_DIR" || exit 1
 check_disk_space "$RESTIC_REPO_DIR" "$MIN_DISK_MB_REQUIRED" || exit 1
 
-# ✅ Restore essential restic env + repo validation
+# Validate restic environment and repository
 validate_restic_env || exit 1
-restic_repo_check || exit 1
+restic_repo_check || {
+  log "🧪 Repository missing. Attempting to initialize..."
+  init_restic_repo || exit 1
+}
 
 # === Exclude File ===
 EXCLUDE_FILE=$(get_backup_excludes restic)
