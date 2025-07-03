@@ -37,14 +37,13 @@ send_email() {
               "Email": "'"$MAILJET_TO"'"
             }
           ],
-          "Subject": "'"$SUBJECT"'",
-          "TextPart": "'"$BODY"'"
+          "Subject": "'"$subject"'",
+          "TextPart": "'"$body"'"
         }
       ]
     }')
 
   echo "$RESPONSE" | grep -q '"Status":"success"' || echo "⚠️ Mailjet send failed: $RESPONSE"
-
 }
 
 # === Optional CLI fallback ===
