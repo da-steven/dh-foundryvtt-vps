@@ -10,7 +10,9 @@ uploads/temp/
 Data/modules/
 Data/systems/
 Data/assets/third-party/
+Data/assets/Third-Party/
 
 # === Rsync-only ===
 # tag: rsync
 Data/assets/third-party/
+Data/assets/Third-Party/
