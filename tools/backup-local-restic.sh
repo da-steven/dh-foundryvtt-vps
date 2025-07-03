@@ -44,9 +44,7 @@ restic_repo_check || {
 EXCLUDE_FILE=$(get_backup_excludes restic)
 if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
   log "❌ Failed to generate restic exclude file. Aborting."
-  send_email \
-    --subject "Restic Backup Failed" \
-    --body "Restic backup aborted: no valid exclude file generated at $(date).\nCheck your .backup-exclude.txt for formatting or path issues."
+  send_email "Restic Backup Failed" "Restic backup aborted: no valid exclude file generated at $(date).\nCheck your .backup-exclude.txt for formatting or path issues."
   exit 1
 fi
 
@@ -61,13 +59,9 @@ restic backup "$FOUNDRY_BACKUP_SOURCE" \
 STATUS=$?
 if [[ $STATUS -eq 0 ]]; then
   log "✅ Restic backup completed successfully."
-  send_email \
-    --subject "Restic Backup Succeeded" \
-    --body "Restic backup completed successfully at $(date).\nRepo: $RESTIC_REPO_DIR\nLog file: $LOG_FILE"
+  send_email "Restic Backup Succeeded" "Restic backup completed successfully at $(date).\nRepo: $RESTIC_REPO_DIR\nLog file: $LOG_FILE."
 else
   log "❌ Restic backup failed with exit code: $STATUS"
-  send_email \
-    --subject "Restic Backup Failed" \
-    --body "Restic backup failed with exit code: $STATUS at $(date). Check log: $LOG_FILE"
+  send_email "Restic Backup Failed" "Restic backup failed with exit code: $STATUS at $(date). Check log: $LOG_FILE."
   exit $STATUS
 fi
