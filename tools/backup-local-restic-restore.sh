@@ -1,11 +1,11 @@
 #!/bin/bash
 # tools/backup-local-restic-restore.sh - Restore from restic snapshot
 
-# Find and source load-env.sh
+# === Bootstrap ===
 if [[ -f "utils/load-env.sh" ]]; then
-  source "utils/load-env.sh"           
+  source "utils/load-env.sh"
 elif [[ -f "../utils/load-env.sh" ]]; then
-  source "../utils/load-env.sh"       
+  source "../utils/load-env.sh"
 else
   echo "❌ Cannot find utils/load-env.sh" >&2
   exit 1
@@ -15,7 +15,8 @@ fi
 load_helpers \
   "foundry-config.sh" \
   "file-utils.sh" \
-  "restic-utils.sh"
+  "restic-utils.sh" \
+  "send-email-mailjet.sh"
 
 # === Setup logging ===
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
@@ -97,7 +98,7 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 # === Interactive confirmation (only if not in cron/script mode) ===
-if [[ -t 0 ]]; then  # Only prompt if running interactively
+if [[ -t 0 ]]; then
   echo ""
   echo "⚠️  RESTORE CONFIRMATION"
   echo "   Snapshot: $SNAPSHOT_ID"
@@ -134,25 +135,25 @@ restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" \
 
 if [[ $? -eq 0 ]]; then
   log "✅ Restic restore completed successfully"
-  
-  # Fix ownership
   ensure_ownership "$RESTORE_TARGET"
-  
+
   echo ""
   echo "✅ Restore completed successfully!"
   echo "📁 Data restored to: $RESTORE_TARGET"
-  
+
   if [[ -n "$BACKUP_COPY" ]]; then
     echo "🧾 Original data backed up to: $BACKUP_COPY"
     echo "   Remove with: rm -rf \"$BACKUP_COPY\""
   fi
-  
+
   echo ""
   echo "🔄 You may need to restart your Foundry container:"
   echo "   docker restart $FOUNDRY_CONTAINER_NAME"
-  
+
 else
   log "❌ Restic restore failed"
+  send_email "Restic Restore Failed" \
+    "Restic restore from snapshot $SNAPSHOT_ID failed at $(date). See log: $LOG_FILE"
   exit 1
 fi
 

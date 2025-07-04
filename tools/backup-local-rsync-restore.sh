@@ -1,7 +1,7 @@
 #!/bin/bash
 # tools/backup-local-rsync-restore.sh - Restore from rsync backup
 
-# Find and source load-env.sh
+# === Bootstrap ===
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"           
 elif [[ -f "../utils/load-env.sh" ]]; then
@@ -14,7 +14,8 @@ fi
 # Load unified configuration and helpers
 load_helpers \
   "foundry-config.sh" \
-  "file-utils.sh" 
+  "file-utils.sh" \
+  "send-email-mailjet.sh"
 
 # === Setup logging ===
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
@@ -69,7 +70,6 @@ if [[ -n "$RESTORE_DATE" ]]; then
     exit 1
   fi
 else
-  # Find most recent backup
   BACKUP_DIR=$(ls -1d "$FOUNDRY_RSYNC_BACKUP_PATH"/*/ 2>/dev/null | sort | tail -n 1 | sed 's:/*$::')
   if [[ -z "$BACKUP_DIR" || ! -d "$BACKUP_DIR" ]]; then
     echo "❌ No backups found at: $FOUNDRY_RSYNC_BACKUP_PATH"
@@ -105,7 +105,7 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 # === Interactive confirmation (only if running interactively) ===
-if [[ -t 0 ]]; then  # Only prompt if running interactively
+if [[ -t 0 ]]; then
   echo ""
   echo "⚠️  RESTORE CONFIRMATION"
   echo "   Backup Date: $RESTORE_DATE"
@@ -121,7 +121,6 @@ if [[ -t 0 ]]; then  # Only prompt if running interactively
     exit 1
   fi
 
-  # Offer to backup current data
   if [[ -d "$RESTORE_TARGET" && "$(ls -A "$RESTORE_TARGET" 2>/dev/null)" ]]; then
     read -p "   Backup current data before restoring? (y/n): " BACKUP_FIRST
     if [[ "$BACKUP_FIRST" =~ ^[Yy]$ ]]; then
@@ -142,26 +141,26 @@ rsync -a --delete "$BACKUP_DIR/" "$RESTORE_TARGET/" >> "$LOG_FILE" 2>&1
 
 if [[ $? -eq 0 ]]; then
   log "✅ Rsync restore completed successfully"
-  
-  # Fix ownership
   ensure_ownership "$RESTORE_TARGET"
-  
+
   echo ""
   echo "✅ Restore completed successfully!"
   echo "📁 Data restored from: $BACKUP_DIR"
   echo "📁 Data restored to: $RESTORE_TARGET"
-  
+
   if [[ -n "$BACKUP_COPY" ]]; then
     echo "🧾 Original data backed up to: $BACKUP_COPY"
     echo "   Remove with: rm -rf \"$BACKUP_COPY\""
   fi
-  
+
   echo ""
   echo "🔄 You may need to restart your Foundry container:"
   echo "   docker restart $FOUNDRY_CONTAINER_NAME"
-  
+
 else
   log "❌ Rsync restore failed. Check log: $LOG_FILE"
+  send_email "Rsync Restore Failed" \
+    "Rsync restore failed at $(date). Check log: $LOG_FILE"
   exit 1
 fi
 

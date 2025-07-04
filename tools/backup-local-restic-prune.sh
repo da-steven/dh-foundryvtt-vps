@@ -1,11 +1,11 @@
 #!/bin/bash
 # tools/backup-local-restic-prune.sh - Prune old restic snapshots
 
-# Find and source load-env.sh
+# === Bootstrap ===
 if [[ -f "utils/load-env.sh" ]]; then
-  source "utils/load-env.sh"           
+  source "utils/load-env.sh"
 elif [[ -f "../utils/load-env.sh" ]]; then
-  source "../utils/load-env.sh"       
+  source "../utils/load-env.sh"
 else
   echo "❌ Cannot find utils/load-env.sh" >&2
   exit 1
@@ -15,7 +15,8 @@ fi
 load_helpers \
   "foundry-config.sh" \
   "file-utils.sh" \
-  "restic-utils.sh"
+  "restic-utils.sh" \
+  "send-email-mailjet.sh"
 
 # === Setup logging ===
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR" || exit 1
@@ -41,9 +42,12 @@ if run_restic_prune; then
   log "✅ Restic prune completed successfully"
 else
   log "❌ Restic prune failed"
+  send_email "Restic Prune Failed" \
+    "Restic prune failed at $(date). Check the log file for details: $LOG_FILE"
   exit 1
 fi
 
+# === Show statistics after prune ===
 log "📊 Repository statistics after prune:"
 restic --repo "$RESTIC_REPO" --password-file "$RESTIC_PASSWORD_FILE" stats 2>/dev/null | while read -r line; do
   log "   $line"
