@@ -12,8 +12,9 @@ else
 fi
 
 # Load helpers
-load_helpers "file-utils.sh" "tool-utils.sh"
+load_helpers "file-utils.sh" "tool-utils.sh" "send-email-mailjet.sh"
 
+# === Setup ===
 TODAY=$(date +%F)
 YESTERDAY=$(date -d "yesterday" +%F)
 TODAY_DIR="$RSYNC_BACKUP_DIR/$TODAY"
@@ -38,7 +39,12 @@ check_disk_space "$RSYNC_BACKUP_DIR" "$MIN_DISK_MB_REQUIRED" || exit 1
 
 # === Exclude File ===
 EXCLUDE_FILE=$(get_backup_excludes rsync)
-[[ -z "$EXCLUDE_FILE" ]] && log "⚠️ No exclude file generated. Continuing with full backup."
+if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
+  log "❌ Failed to generate rsync exclude file. Aborting."
+  send_email "Rsync Backup Failed" \
+    "Rsync backup aborted: no valid exclude file generated at $(date).\nCheck your .backup-exclude.txt for formatting or path issues."
+  exit 1
+fi
 
 mkdir -p "$TODAY_DIR"
 
@@ -50,17 +56,22 @@ else
   log "ℹ️ No previous backup found. Full copy will be made."
 fi
 
+log "🚀 Running rsync job..."
 rsync -a \
   --delete \
-  ${EXCLUDE_FILE:+--exclude-from="$EXCLUDE_FILE"} \
+  --exclude-from="$EXCLUDE_FILE" \
   $LINK_DEST \
   "$FOUNDRY_BACKUP_SOURCE/" "$TODAY_DIR/" >> "$LOG_FILE" 2>&1
 
-if [[ $? -eq 0 ]]; then
-  log "✅ Backup completed successfully."
+STATUS=$?
+if [[ $STATUS -eq 0 ]]; then
+  log "✅ Rsync backup completed successfully."
+  send_email "Rsync Backup Successful" "Rsync backup completed successfully on $(date)."
 else
-  log "❌ rsync returned an error. Check log for details."
-  exit 1
+  log "❌ Rsync backup failed with exit code: $STATUS"
+  send_email "Rsync Backup Failed" \
+    "Rsync backup failed with exit code $STATUS at $(date).\nLog: $LOG_FILE"
+  exit $STATUS
 fi
 
 # === Rotate Old Backups ===
@@ -73,4 +84,4 @@ done
 
 log "✅ Local incremental backup saved to: $TODAY_DIR"
 log "📊 Backup size: $(du -sh "$TODAY_DIR" | cut -f1)"
-log "==========================================="
+log "============================================="
