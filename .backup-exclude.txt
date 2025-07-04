@@ -7,12 +7,12 @@ uploads/temp/
 
 # === Cloud-only Excludes ===
 # tag: b2,restic
-Data/modules/
-Data/systems/
-Data/assets/third-party/
-Data/assets/Third-Party/
+modules/
+systems/
+assets/third-party/
+assets/Third-Party/
 
 # === Rsync-only ===
 # tag: rsync
-Data/assets/third-party/
-Data/assets/Third-Party/
+assets/third-party/
+assets/Third-Party/
