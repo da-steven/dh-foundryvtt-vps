@@ -38,7 +38,8 @@ safe_mkdir "$RSYNC_BACKUP_DIR" || exit 1
 check_disk_space "$RSYNC_BACKUP_DIR" "$MIN_DISK_MB_REQUIRED" || exit 1
 
 # === Exclude File ===
-EXCLUDE_FILE=$(get_backup_excludes rsync)
+# EXCLUDE_FILE=$(get_backup_excludes rsync)
+EXCLUDE_FILE="$RSYNC_EXCLUDE_FILE"
 if [[ -z "$EXCLUDE_FILE" || ! -s "$EXCLUDE_FILE" ]]; then
   log "❌ Failed to generate rsync exclude file. Aborting."
   send_email "Rsync Backup Failed" \

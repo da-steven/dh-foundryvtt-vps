@@ -14,10 +14,11 @@ assets/Third-Party/**
 
 # === Rsync-only ===
 # tag: rsync
-assets/third-party/
-assets/third-party/*
-assets/third-party/**
-assets/Third-Party/
-assets/Third-Party/
-assets/Third-Party/*
-assets/Third-Party/**
+# Moved to `.rsync-exclude.txt`
+# assets/third-party/
+# assets/third-party/*
+# assets/third-party/**
+# assets/Third-Party/
+# assets/Third-Party/
+# assets/Third-Party/*
+# assets/Third-Party/**
