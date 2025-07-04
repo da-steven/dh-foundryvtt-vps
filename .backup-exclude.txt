@@ -16,8 +16,8 @@ assets/Third-Party/**
 # tag: rsync
 assets/third-party/
 assets/third-party/*
-assets/third-party/***
+assets/third-party/**
 assets/Third-Party/
 assets/Third-Party/
 assets/Third-Party/*
-assets/Third-Party/***
+assets/Third-Party/**
