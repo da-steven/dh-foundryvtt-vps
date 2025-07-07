@@ -3,6 +3,9 @@
 # ‼️WARNING: This script is work-in-progress placeholder. 
 # TODO: This is a WIP script that I will integrate into our eventual Foundry updgrate workdlow.
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 # Find and source load-env.sh
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"           

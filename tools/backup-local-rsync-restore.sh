@@ -1,6 +1,9 @@
 #!/bin/bash
 # tools/backup-local-rsync-restore.sh - Restore from rsync backup
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 # === Bootstrap ===
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"           

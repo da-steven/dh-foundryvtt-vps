@@ -2,6 +2,9 @@
 # tools/setup-firewall.sh
 # Installs and configures basic firewall and SSH protection via UFW and fail2ban
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 # === Load environment ===
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"

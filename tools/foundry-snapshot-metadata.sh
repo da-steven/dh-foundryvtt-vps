@@ -2,6 +2,9 @@
 # tools/foundry-snapshot-metadata.sh
 # Captures Foundry module/system metadata (CSV + JSON) with timestamp
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 set -euo pipefail
 
 # Find and source load-env.sh

@@ -1,6 +1,9 @@
 #!/bin/bash
 # tools/test-utils.sh - Test all utility functions
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 # Find and source load-env.sh
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"           

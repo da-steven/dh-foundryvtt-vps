@@ -1,6 +1,9 @@
 #!/bin/bash
 # tools/backup-remote-b2-rclone.sh - Remote backup to Backblaze B2
 
+# Always run from the script's directory (needed for CRON execution)
+cd "$(dirname "$0")"
+
 # === Bootstrap Environment ===
 if [[ -f "utils/load-env.sh" ]]; then
   source "utils/load-env.sh"
