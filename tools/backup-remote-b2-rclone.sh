@@ -19,11 +19,12 @@ load_helpers "file-utils.sh" "tool-utils.sh" "send-email-mailjet.sh"
 
 # === Sanity Checks ===
 : "${B2_BUCKET_NAME:?B2_BUCKET_NAME not set in .env}"
+: "${B2_PREFIX:?B2_PREFIX not set in .env}"
 : "${FOUNDRY_BACKUP_SOURCE:?FOUNDRY_BACKUP_SOURCE not set in .env}"
 : "${FOUNDRY_BACKUP_LOG_DIR:?FOUNDRY_BACKUP_LOG_DIR not set in .env}"
 
 # === Setup ===
-DEST_REMOTE="b2:$B2_BUCKET_NAME"
+DEST_REMOTE="$B2_PREFIX:$B2_BUCKET_NAME"
 LOG_FILE="$FOUNDRY_BACKUP_LOG_DIR/b2-backup-log-$(date +%F).txt"
 safe_mkdir "$FOUNDRY_BACKUP_LOG_DIR"
 

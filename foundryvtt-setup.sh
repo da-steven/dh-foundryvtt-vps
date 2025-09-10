@@ -125,10 +125,22 @@ fi
 # === Extract Foundry ===
 echo "📂 Extracting Foundry..."
 unzip -q foundryvtt.zip -d "$FOUNDRY_INSTALL_PATH" && rm foundryvtt.zip
-[[ ! -f "$FOUNDRY_INSTALL_PATH/resources/app/main.mjs" ]] && {
-  echo "❌ Extraction failed: expected file missing."
+
+# Support both v12 (legacy) and v13+ (new) file structures
+if [[ -f "$FOUNDRY_INSTALL_PATH/resources/app/main.mjs" ]]; then
+  echo "✅ Foundry v12 structure detected: resources/app/main.mjs"
+elif [[ -f "$FOUNDRY_INSTALL_PATH/main.mjs" ]]; then
+  echo "✅ Foundry v13+ structure detected: main.mjs"
+else
+  echo "❌ Extraction failed: Neither legacy nor new main.mjs file found."
+  echo "   Expected either:"
+  echo "   - $FOUNDRY_INSTALL_PATH/resources/app/main.mjs (v12 and earlier)"
+  echo "   - $FOUNDRY_INSTALL_PATH/main.mjs (v13 and later)"
+  echo ""
+  echo "📋 Files found in root:"
+  ls -la "$FOUNDRY_INSTALL_PATH" | head -10
   exit 1
-}
+fi
 
 # === Docker BuildKit ===
 if ! docker buildx version > /dev/null 2>&1; then
@@ -150,6 +162,19 @@ fi
 
 # === Create Dockerfile and Docker Compose ===
 echo "🐳 Creating Dockerfile and docker-compose.yml..."
+
+# Determine the correct entry point based on file structure
+if [[ -f "$FOUNDRY_INSTALL_PATH/resources/app/main.mjs" ]]; then
+  ENTRY_POINT="resources/app/main.mjs"
+  echo "✅ Using legacy entry point: $ENTRY_POINT"
+elif [[ -f "$FOUNDRY_INSTALL_PATH/main.mjs" ]]; then
+  ENTRY_POINT="main.mjs" 
+  echo "✅ Using modern entry point: $ENTRY_POINT"
+else
+  echo "❌ Cannot determine entry point for Dockerfile"
+  exit 1
+fi
+
 cat <<EOF > "$FOUNDRY_INSTALL_PATH/Dockerfile"
 FROM node:20-slim
 RUN apt-get update && \
@@ -163,7 +188,7 @@ RUN apt-get update && \
 WORKDIR /foundry
 COPY . /foundry
 EXPOSE $FOUNDRY_PORT
-CMD ["node", "resources/app/main.mjs", "--dataPath=/data"]
+CMD ["node", "$ENTRY_POINT", "--dataPath=/data"]
 EOF
 
 cat <<EOF > "$FOUNDRY_INSTALL_PATH/docker-compose.yml"

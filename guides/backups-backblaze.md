@@ -1,3 +1,37 @@
+# Quick Reference
+
+## Configure/update/view settings for rclone:
+```bash
+rclone config
+```
+OR
+```bash
+rclone config show
+```
+
+## To see all buckets inside a remote (e.g. `b2-v13`):
+```bash
+rclone lsd b2-v13:
+```
+
+## Show the contents of remote buckets:
+```bash
+rclone ls b2-v12:dh-foundry-foundry-v12
+rclone ls b2-v13:dh-foundry-foundry-v13
+```
+
+## To list folders inside:
+```bash
+rclone lsf b2-v12:dh-foundry-foundry-v12
+rclone lsf b2-v13:dh-foundry-foundry-v13
+```
+
+## List remotes
+```bash
+rclone listremotes
+```
+
+
 # Foundry VTT Backups to Backblaze B2 (Using rclone)
 
 This guide walks you through setting up automatic backups of your Foundry VTT **data directory** to Backblaze B2 cloud storage using `rclone`. It includes incremental backup support, file versioning, and restore instructions.
