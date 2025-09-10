@@ -19,7 +19,7 @@ load_helpers "file-utils.sh" "tool-utils.sh" "send-email-mailjet.sh"
 
 # === Sanity Checks ===
 : "${FOUNDRY_SHARED_ASSETS:?FOUNDRY_SHARED_ASSETS not set in .env}"
-: "${B2_BUCKET_NAME_ASSETS:?B2_BUCKET_NAME_ASSETS not set in .
+: "${B2_BUCKET_NAME_ASSETS:?B2_BUCKET_NAME_ASSETS not set in .env}"
 : "${FOUNDRY_BACKUP_LOG_DIR:?FOUNDRY_BACKUP_LOG_DIR not set in .env}"
 
 # === Setup ===
