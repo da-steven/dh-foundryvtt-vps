@@ -62,13 +62,31 @@ if [[ ! -d "$FOUNDRY_SHARED_ASSETS" ]]; then
 fi
 
 log "🚀 Running B2 shared assets backup job..."
-rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
-  --exclude-from="$EXCLUDE_FILE" \
-  --transfers=8 \
-  --checkers=4 \
-  --fast-list \
-  --log-level INFO \
-  --log-file="$LOG_FILE"
+
+# Detect if running interactively (terminal) or via cron (no terminal)
+if [[ -t 1 ]]; then
+  # Interactive mode - show progress and log
+  log "ℹ️ Interactive mode detected - showing progress"
+  rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
+    --exclude-from="$EXCLUDE_FILE" \
+    --transfers=8 \
+    --checkers=4 \
+    --fast-list \
+    --log-level INFO \
+    --log-file="$LOG_FILE" \
+    --progress
+else
+  # Cron/non-interactive mode - log only, no console output
+  log "ℹ️ Non-interactive mode detected - logging only"
+  rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
+    --exclude-from="$EXCLUDE_FILE" \
+    --transfers=8 \
+    --checkers=4 \
+    --fast-list \
+    --log-level INFO \
+    --log-file="$LOG_FILE" \
+    --quiet
+fi
 
 STATUS=$?
 
