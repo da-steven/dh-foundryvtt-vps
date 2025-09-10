@@ -110,8 +110,8 @@ cloudflared tunnel run --token <YOUR-TOKEN>
 
 ## ⚙️ Next Steps
 
-The **tools/** directory includes a README and scripts for setting up local and remote backups.
-
+- The **tools/** directory includes a README and scripts for setting up local and remote backups.
+- Refer to the [Shared Assets guide](/guides/shared-assets.md) for info on sharing assets with multiple Foundry versions.
 ---
 
 ## 🔧 Troubleshooting

@@ -202,6 +202,7 @@ services:
       - "127.0.0.1:$FOUNDRY_PORT:$FOUNDRY_PORT"
     volumes:
       - $FOUNDRY_DATA_PATH:/data
+      - $FOUNDRY_SHARED_ASSETS:/data/Data/assets
     restart: unless-stopped
 EOF
 
