@@ -63,8 +63,30 @@ fi
 
 log "🚀 Running B2 shared assets backup job..."
 
-# Detect if running interactively (terminal) or via cron (no terminal)
-if [[ -t 1 ]]; then
+# Better cron detection - check multiple indicators
+if [[ -n "$CRON_MODE" ]] || [[ "$TERM" == "dumb" ]] || [[ -z "$TERM" ]] || [[ ! -t 0 ]]; then
+  # Cron/non-interactive mode - log only, no console output
+  log "ℹ️ Non-interactive mode detected - logging only"
+  log "🔍 Debug: TERM=$TERM, CRON_MODE=$CRON_MODE, stdin_tty=$([ -t 0 ] && echo yes || echo no)"
+  log "🔍 Debug: HOME=$HOME, USER=$USER, PWD=$PWD"
+  log "🔍 Debug: rclone config location: $HOME/.config/rclone/rclone.conf"
+  
+  # Test if config exists
+  if [[ ! -f "$HOME/.config/rclone/rclone.conf" ]]; then
+    log "❌ rclone config file not found at: $HOME/.config/rclone/rclone.conf"
+    exit 1
+  fi
+  
+  # For cron: don't use --log-file to avoid conflicts with cron's redirection
+  rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
+    --exclude-from="$EXCLUDE_FILE" \
+    --transfers=8 \
+    --checkers=4 \
+    --fast-list \
+    --log-level INFO \
+    --config="$HOME/.config/rclone/rclone.conf" \
+    --quiet
+else
   # Interactive mode - show progress and log
   log "ℹ️ Interactive mode detected - showing progress"
   rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
@@ -74,18 +96,8 @@ if [[ -t 1 ]]; then
     --fast-list \
     --log-level INFO \
     --log-file="$LOG_FILE" \
+    --config="$HOME/.config/rclone/rclone.conf" \
     --progress
-else
-  # Cron/non-interactive mode - log only, no console output
-  log "ℹ️ Non-interactive mode detected - logging only"
-  rclone copy "$FOUNDRY_SHARED_ASSETS" "$DEST_REMOTE" \
-    --exclude-from="$EXCLUDE_FILE" \
-    --transfers=8 \
-    --checkers=4 \
-    --fast-list \
-    --log-level INFO \
-    --log-file="$LOG_FILE" \
-    --quiet
 fi
 
 STATUS=$?
