@@ -1,5 +1,7 @@
 # Foundry VTT - Cron Backup Configuration Guide
 
+**NOTE**: Refer to [Cron Templates](/dh-foundryvtt-vps/guides/cron-teplate.md) for the current `crontab` setup.
+
 ## 🤖 **Cron-Ready Scripts Status**
 
 ### ✅ **SUITABLE FOR CRON (Fully Automated):**
