@@ -24,9 +24,10 @@ FORCE_DOWNLOAD=0
 USE_BUILDKIT=0
 BUILDX_VERSION="v0.11.2"
 
-# Define UID/GID for Docker user mapping
-FOUNDRY_UID=$(id -u)
-FOUNDRY_GID=$(id -g)
+# Use env var if already set, otherwise detect
+# Export makes it available to docker-compose
+export FOUNDRY_UID=${FOUNDRY_UID:-$(id -u)}
+export FOUNDRY_GID=${FOUNDRY_GID:-$(id -g)}
 
 # === Display Configuration ===
 echo ""
@@ -185,8 +186,23 @@ RUN apt-get update && \
       nano \
       vim \
     && rm -rf /var/lib/apt/lists/*
+
+# Create foundry user with UID/GID from build args (defaults to 1000)
+ARG FOUNDRY_UID=1000
+ARG FOUNDRY_GID=1000
+RUN groupadd -g \${FOUNDRY_GID} foundry && \
+    useradd -u \${FOUNDRY_UID} -g \${FOUNDRY_GID} -m -s /bin/bash foundry
+
+RUN mkdir -p /foundry && chown -R foundry:foundry /foundry
+
 WORKDIR /foundry
-COPY . /foundry
+
+# Copy files as foundry user
+COPY --chown=foundry:foundry . /foundry
+
+# Switch to foundry user
+USER foundry
+
 EXPOSE $FOUNDRY_PORT
 CMD ["node", "$ENTRY_POINT", "--dataPath=/data"]
 EOF
@@ -195,9 +211,12 @@ cat <<EOF > "$FOUNDRY_INSTALL_PATH/docker-compose.yml"
 version: '3.8'
 services:
   foundry:
-    build: .
+    build:
+      context: .
+      args:
+        FOUNDRY_UID: ${FOUNDRY_UID}
+        FOUNDRY_GID: ${FOUNDRY_GID}
     container_name: $FOUNDRY_CONTAINER_NAME
-    user: "${FOUNDRY_UID}:${FOUNDRY_GID}"
     ports:
       - "127.0.0.1:$FOUNDRY_PORT:$FOUNDRY_PORT"
     volumes:
@@ -219,6 +238,15 @@ if [[ $? -ne 0 ]]; then
   echo "❌ Docker container failed to launch."
   docker-compose logs
   exit 1
+fi
+
+# === Ensure Correct Ownership Inside Container ===
+echo "🔧 Setting correct ownership inside container..."
+docker exec -u root "$FOUNDRY_CONTAINER_NAME" chown -R foundry:foundry /foundry
+if [[ $? -eq 0 ]]; then
+  echo "✅ Ownership fixed: foundry user can now write to /foundry"
+else
+  echo "⚠️  Warning: Could not fix ownership. In-app updates may not work."
 fi
 
 echo ""
